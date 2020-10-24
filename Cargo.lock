@@ -659,6 +659,7 @@ dependencies = [
 name = "canvas-runtime"
 version = "0.1.0"
 dependencies = [
+ "dex",
  "frame-executive",
  "frame-support",
  "frame-system",
@@ -1094,6 +1095,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "dex"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]

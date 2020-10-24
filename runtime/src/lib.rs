@@ -288,6 +288,12 @@ impl pallet_sudo::Trait for Runtime {
 	type Call = Call;
 }
 
+impl dex::Trait for Runtime {
+	type Event = Event;
+	type Balance = u64;
+	type AssetId = u32;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -304,6 +310,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Contracts: pallet_contracts::{Module, Call, Config, Storage, Event<T>},
+		Dex: dex::{Module, Call, Storage, Event<T>},
 	}
 );
 
