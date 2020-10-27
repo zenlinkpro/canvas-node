@@ -9,7 +9,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use sp_std::prelude::*;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
-	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
+	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature, ModuleId,
 	transaction_validity::{TransactionValidity, TransactionSource},
 };
 use sp_runtime::traits::{
@@ -38,6 +38,8 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 	},
 };
+/// zenlink
+pub use zenlink_primitives::{Amount, CurrencyId, TradingPair, TokenSymbol};
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -288,10 +290,36 @@ impl pallet_sudo::Trait for Runtime {
 	type Call = Call;
 }
 
-impl dex::Trait for Runtime {
+impl orml_tokens::Trait for Runtime {
 	type Event = Event;
-	type Balance = u64;
-	type AssetId = u32;
+	type Balance = zenlink_primitives::Balance;
+	type Amount = Amount;
+	type CurrencyId = CurrencyId;
+	type OnReceived = ();
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const DEXModuleId: ModuleId = ModuleId(*b"zlk/dexm");
+	pub const GetExchangeFee: (u32, u32) = (1, 1000);	// 0.1%
+	pub const TradingPathLimit: usize = 3;
+	pub EnabledTradingPairs: Vec<TradingPair> = vec![
+		TradingPair::new(CurrencyId::Token(TokenSymbol::ZUSD), CurrencyId::Token(TokenSymbol::DOT)),
+		TradingPair::new(CurrencyId::Token(TokenSymbol::ZUSD), CurrencyId::Token(TokenSymbol::XBTC)),
+		TradingPair::new(CurrencyId::Token(TokenSymbol::ZUSD), CurrencyId::Token(TokenSymbol::LDOT)),
+		TradingPair::new(CurrencyId::Token(TokenSymbol::ZUSD), CurrencyId::Token(TokenSymbol::ZLK)),
+		TradingPair::new(CurrencyId::Token(TokenSymbol::ZUSD), CurrencyId::Token(TokenSymbol::RENBTC)),
+	];
+}
+
+impl zenlink_dex::Trait for Runtime {
+	type Event = Event;
+	type Currency = Tokens;
+	type EnabledTradingPairs = EnabledTradingPairs;
+	type GetExchangeFee = GetExchangeFee;
+	type TradingPathLimit = TradingPathLimit;
+	type ModuleId = DEXModuleId;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -310,7 +338,8 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Contracts: pallet_contracts::{Module, Call, Config, Storage, Event<T>},
-		Dex: dex::{Module, Call, Storage, Event<T>},
+		Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
+		DexModule: zenlink_dex::{Module, Call, Storage, Event<T>},
 	}
 );
 

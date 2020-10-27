@@ -2,7 +2,7 @@ use sp_core::{Pair, Public, sr25519};
 use canvas_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature,
-	ContractsConfig,
+	ContractsConfig, CurrencyId, TokenSymbol, TokensConfig,
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -102,12 +102,7 @@ pub fn testnet_config() -> Result<ChainSpec, String> {
 			vec![testnet_root()],
 			true,
 		),
-		vec![
-			"/ip4/35.233.19.96/tcp/30333/p2p/QmNvYhAZSBtahCqCXznYiq8e24Yes1GraPFYCc3DyA5f3z".parse()
-				.expect("MultiaddrWithPeerId"),
-			"/ip4/35.205.110.21/tcp/30333/p2p/QmPKFc9B2oeQFc5oxbNsRENwSYibzzafKmcHs9wBZCJH4U".parse()
-				.expect("MultiaddrWithPeerId"),
-		],
+		vec![],
 		None,
 		Some("prc"),
 		None,
@@ -141,13 +136,19 @@ fn testnet_genesis(
 		}),
 		pallet_sudo: Some(SudoConfig {
 			// Assign network admin rights.
-			key: root_key,
+			key: root_key.clone(),
 		}),
 		pallet_contracts: Some(ContractsConfig {
 			current_schedule: pallet_contracts::Schedule {
 					enable_println,
 					..Default::default()
 			},
+		}),
+		orml_tokens: Some(TokensConfig {
+			endowed_accounts: vec![
+				(root_key.clone(), CurrencyId::Token(TokenSymbol::DOT), 1 << 60),
+				(root_key, CurrencyId::Token(TokenSymbol::XBTC), 1 << 60),
+			],
 		}),
 	}
 }
