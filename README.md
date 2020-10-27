@@ -21,3 +21,32 @@ or
 ```
 cargo run --release -- --chain=./res/testnet-1.json
 ```
+
+for polkadot.js.org
+
+developer custom type
+
+```json
+{
+  "Address": "AccountId",
+  "LookupSource": "AccountId",
+  "RefCount": "u8",
+  "TokenSymbol": {
+    "_enum": [
+      "ZLK",
+      "ZUSD",
+      "DOT",
+      "XBTC",
+      "LDOT",
+      "RENBTC"
+    ]
+  },
+  "CurrencyId": {
+    "_enum": {
+      "Token": "(TokenSymbol)",
+      "DEXShare": "(TokenSymbol,TokenSymbol)"
+    }
+  },
+  "TradingPair": "(CurrencyId, CurrencyId)"
+}
+```
