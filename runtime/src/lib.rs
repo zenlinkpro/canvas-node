@@ -338,7 +338,7 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Contracts: pallet_contracts::{Module, Call, Config, Storage, Event<T>},
-		Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
+		Tokens: orml_tokens::{Module, Call, Storage, Event<T>, Config<T>},
 		DexModule: zenlink_dex::{Module, Call, Storage, Event<T>},
 	}
 );

@@ -5,15 +5,15 @@
 use super::*;
 use frame_support::{assert_noop, assert_ok};
 use mock::{
-	DexModule, ExtBuilder, Origin, Runtime, System, TestEvent, Tokens, ZLK, ALICE, ZUSD, AUSD_DOT_PAIR, AUSD_XBTC_PAIR,
+	DexModule, ExtBuilder, Origin, Runtime, System, TestEvent, Tokens, ZLK, ALICE, ZUSD, ZUSD_DOT_PAIR, ZUSD_XBTC_PAIR,
 	BOB, DOT, XBTC,
 };
 
 #[test]
 fn get_liquidity_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		LiquidityPool::insert(AUSD_DOT_PAIR, (1000, 20));
-		assert_eq!(DexModule::liquidity_pool(AUSD_DOT_PAIR), (1000, 20));
+		LiquidityPool::insert(ZUSD_DOT_PAIR, (1000, 20));
+		assert_eq!(DexModule::liquidity_pool(ZUSD_DOT_PAIR), (1000, 20));
 		assert_eq!(DexModule::get_liquidity(ZUSD, DOT), (1000, 20));
 		assert_eq!(DexModule::get_liquidity(DOT, ZUSD), (20, 1000));
 	});
@@ -48,8 +48,8 @@ fn get_supply_amount_work() {
 #[test]
 fn get_target_amounts_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		LiquidityPool::insert(AUSD_DOT_PAIR, (50000, 10000));
-		LiquidityPool::insert(AUSD_XBTC_PAIR, (100000, 10));
+		LiquidityPool::insert(ZUSD_DOT_PAIR, (50000, 10000));
+		LiquidityPool::insert(ZUSD_XBTC_PAIR, (100000, 10));
 		assert_noop!(
 			DexModule::get_target_amounts(&vec![DOT], 10000, None),
 			Error::<Runtime>::InvalidTradingPathLength,
@@ -93,7 +93,7 @@ fn get_target_amounts_work() {
 fn calculate_amount_for_big_number_work() {
 	ExtBuilder::default().build().execute_with(|| {
 		LiquidityPool::insert(
-			AUSD_DOT_PAIR,
+			ZUSD_DOT_PAIR,
 			(171_000_000_000_000_000_000_000, 56_000_000_000_000_000_000_000),
 		);
 		assert_eq!(
@@ -118,8 +118,8 @@ fn calculate_amount_for_big_number_work() {
 #[test]
 fn get_supply_amounts_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		LiquidityPool::insert(AUSD_DOT_PAIR, (50000, 10000));
-		LiquidityPool::insert(AUSD_XBTC_PAIR, (100000, 10));
+		LiquidityPool::insert(ZUSD_DOT_PAIR, (50000, 10000));
+		LiquidityPool::insert(ZUSD_XBTC_PAIR, (100000, 10));
 		assert_noop!(
 			DexModule::get_supply_amounts(&vec![DOT], 10000, None),
 			Error::<Runtime>::InvalidTradingPathLength,
@@ -158,7 +158,7 @@ fn get_supply_amounts_work() {
 #[test]
 fn _swap_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		LiquidityPool::insert(AUSD_DOT_PAIR, (50000, 10000));
+		LiquidityPool::insert(ZUSD_DOT_PAIR, (50000, 10000));
 
 		assert_eq!(DexModule::get_liquidity(ZUSD, DOT), (50000, 10000));
 		DexModule::_swap(ZUSD, DOT, 1000, 1000);
@@ -171,8 +171,8 @@ fn _swap_work() {
 #[test]
 fn _swap_by_path_work() {
 	ExtBuilder::default().build().execute_with(|| {
-		LiquidityPool::insert(AUSD_DOT_PAIR, (50000, 10000));
-		LiquidityPool::insert(AUSD_XBTC_PAIR, (100000, 10));
+		LiquidityPool::insert(ZUSD_DOT_PAIR, (50000, 10000));
+		LiquidityPool::insert(ZUSD_XBTC_PAIR, (100000, 10));
 
 		assert_eq!(DexModule::get_liquidity(ZUSD, DOT), (50000, 10000));
 		assert_eq!(DexModule::get_liquidity(ZUSD, XBTC), (100000, 10));
@@ -202,7 +202,7 @@ fn add_liquidity_work() {
 		assert_eq!(Tokens::free_balance(ZUSD, &DexModule::account_id()), 0);
 		assert_eq!(Tokens::free_balance(DOT, &DexModule::account_id()), 0);
 		assert_eq!(
-			Tokens::free_balance(AUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
+			Tokens::free_balance(ZUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
 			0
 		);
 		assert_eq!(Tokens::free_balance(ZUSD, &ALICE), 1_000_000_000_000_000_000);
@@ -234,13 +234,13 @@ fn add_liquidity_work() {
 		assert_eq!(Tokens::free_balance(ZUSD, &DexModule::account_id()), 5_000_000_000_000);
 		assert_eq!(Tokens::free_balance(DOT, &DexModule::account_id()), 1_000_000_000_000);
 		assert_eq!(
-			Tokens::free_balance(AUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
+			Tokens::free_balance(ZUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
 			5_000_000_000_000
 		);
 		assert_eq!(Tokens::free_balance(ZUSD, &ALICE), 999_995_000_000_000_000);
 		assert_eq!(Tokens::free_balance(DOT, &ALICE), 999_999_000_000_000_000);
 		assert_eq!(
-			Tokens::free_balance(AUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &BOB),
+			Tokens::free_balance(ZUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &BOB),
 			0
 		);
 		assert_eq!(Tokens::free_balance(ZUSD, &BOB), 1_000_000_000_000_000_000);
@@ -272,7 +272,7 @@ fn add_liquidity_work() {
 		assert_eq!(Tokens::free_balance(ZUSD, &DexModule::account_id()), 45_000_000_000_000);
 		assert_eq!(Tokens::free_balance(DOT, &DexModule::account_id()), 9_000_000_000_000);
 		assert_eq!(
-			Tokens::free_balance(AUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &BOB),
+			Tokens::free_balance(ZUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &BOB),
 			40_000_000_000_000
 		);
 		assert_eq!(Tokens::free_balance(ZUSD, &BOB), 999_960_000_000_000_000);
@@ -295,7 +295,7 @@ fn remove_liquidity_work() {
 		assert_noop!(
 			DexModule::remove_liquidity(
 				Origin::signed(ALICE),
-				AUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(),
+				ZUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(),
 				DOT,
 				100_000_000
 			),
@@ -309,7 +309,7 @@ fn remove_liquidity_work() {
 		assert_eq!(Tokens::free_balance(ZUSD, &DexModule::account_id()), 5_000_000_000_000);
 		assert_eq!(Tokens::free_balance(DOT, &DexModule::account_id()), 1_000_000_000_000);
 		assert_eq!(
-			Tokens::free_balance(AUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
+			Tokens::free_balance(ZUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
 			5_000_000_000_000
 		);
 		assert_eq!(Tokens::free_balance(ZUSD, &ALICE), 999_995_000_000_000_000);
@@ -340,7 +340,7 @@ fn remove_liquidity_work() {
 		assert_eq!(Tokens::free_balance(ZUSD, &DexModule::account_id()), 1_000_000_000_000);
 		assert_eq!(Tokens::free_balance(DOT, &DexModule::account_id()), 200_000_000_000);
 		assert_eq!(
-			Tokens::free_balance(AUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
+			Tokens::free_balance(ZUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
 			1_000_000_000_000
 		);
 		assert_eq!(Tokens::free_balance(ZUSD, &ALICE), 999_999_000_000_000_000);
@@ -368,7 +368,7 @@ fn remove_liquidity_work() {
 		assert_eq!(Tokens::free_balance(ZUSD, &DexModule::account_id()), 0);
 		assert_eq!(Tokens::free_balance(DOT, &DexModule::account_id()), 0);
 		assert_eq!(
-			Tokens::free_balance(AUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
+			Tokens::free_balance(ZUSD_DOT_PAIR.get_dex_share_currency_id().unwrap(), &ALICE),
 			0
 		);
 		assert_eq!(Tokens::free_balance(ZUSD, &ALICE), 1_000_000_000_000_000_000);

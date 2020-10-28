@@ -18,8 +18,8 @@ pub const ZUSD: CurrencyId = CurrencyId::Token(TokenSymbol::ZUSD);
 pub const XBTC: CurrencyId = CurrencyId::Token(TokenSymbol::XBTC);
 pub const DOT: CurrencyId = CurrencyId::Token(TokenSymbol::DOT);
 pub const ZLK: CurrencyId = CurrencyId::Token(TokenSymbol::ZLK);
-pub const AUSD_XBTC_PAIR: TradingPair = TradingPair(ZUSD, XBTC);
-pub const AUSD_DOT_PAIR: TradingPair = TradingPair(ZUSD, DOT);
+pub const ZUSD_XBTC_PAIR: TradingPair = TradingPair(ZUSD, XBTC);
+pub const ZUSD_DOT_PAIR: TradingPair = TradingPair(ZUSD, DOT);
 pub const DOT_XBTC_PAIR: TradingPair = TradingPair(DOT, XBTC);
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -94,8 +94,8 @@ thread_local! {
 parameter_types! {
 	pub const GetExchangeFee: (u32, u32) = (1, 100);
 	pub const TradingPathLimit: usize = 3;
-	pub EnabledTradingPairs : Vec<TradingPair> = vec![AUSD_DOT_PAIR, AUSD_XBTC_PAIR, DOT_XBTC_PAIR];
-	pub const DEXModuleId: ModuleId = ModuleId(*b"aca/dexm");
+	pub EnabledTradingPairs : Vec<TradingPair> = vec![ZUSD_DOT_PAIR, ZUSD_XBTC_PAIR, DOT_XBTC_PAIR];
+	pub const DEXModuleId: ModuleId = ModuleId(*b"zlk/dexm");
 }
 
 impl Trait for Runtime {
