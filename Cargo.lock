@@ -659,7 +659,6 @@ dependencies = [
 name = "canvas-runtime"
 version = "0.1.0"
 dependencies = [
- "dex",
  "frame-executive",
  "frame-support",
  "frame-system",
@@ -689,6 +688,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder-runner",
+ "zenlink-assets",
 ]
 
 [[package]]
@@ -1095,18 +1095,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "dex"
-version = "0.1.0"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]
@@ -7991,6 +7979,18 @@ dependencies = [
  "parking_lot 0.11.0",
  "rand 0.7.3",
  "static_assertions",
+]
+
+[[package]]
+name = "zenlink-assets"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
 ]
 
 [[package]]

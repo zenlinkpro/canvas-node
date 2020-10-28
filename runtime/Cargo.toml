@@ -43,7 +43,7 @@ pallet-contracts-primitives = { version = "2.0.0", default_features = false }
 pallet-contracts-rpc-runtime-api = { version = "0.8.0", default-features = false }
 
 # Zenlink dex
-dex = { path = '../zenlink/dex', default-features = false, version = '0.1.0'}
+dex = { path = '../zenlink/assets', package = "zenlink-assets", default-features = false, version = '0.1.0'}
 
 [build-dependencies]
 wasm-builder-runner = { version = "1.0.6", package = "substrate-wasm-builder-runner" }

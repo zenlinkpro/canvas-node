@@ -2,7 +2,7 @@
 members = [
     'node',
     'runtime',
-    'zenlink/dex'
+    'zenlink/assets'
 ]
 [profile.release]
 panic = 'unwind'
