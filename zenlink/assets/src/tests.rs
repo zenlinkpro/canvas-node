@@ -1,18 +1,45 @@
-use crate::{mock::*, Error};
+use crate::{mock::*, Error, AssetInfo, Symbol, Name};
 use frame_support::{assert_noop, assert_ok};
+
+const TEST_ASSET_NAME : Name = *b"zenlink_swap_v_1";
+const TEST_ASSET_SYMBOL :Symbol = *b"zlktest1";
+const TEST_ASSET_DECIMALS :u8 = 18;
+
+const TEST_ASSET_INFO: AssetInfo = AssetInfo {
+    name: TEST_ASSET_NAME,
+    symbol: TEST_ASSET_SYMBOL,
+    decimals: TEST_ASSET_DECIMALS,
+};
 
 #[test]
 fn issuing_asset_units_to_issuer_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Assets::issue(Origin::signed(1), 100));
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
         assert_eq!(Assets::balance(0, 1), 100);
+        assert_eq!(Assets::asset_info(0), Some(TEST_ASSET_INFO));
+    });
+}
+
+#[test]
+fn issue_asset_info_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
+        assert_eq!(Assets::balance(0, 1), 100);
+        assert_ok!(Assets::transfer(Origin::signed(1), 0, 2, 50));
+        assert_eq!(Assets::balance(0, 1), 50);
+        assert_eq!(Assets::balance(0, 2), 50);
+        assert_ok!(Assets::transfer(Origin::signed(2), 0, 3, 31));
+        assert_eq!(Assets::balance(0, 1), 50);
+        assert_eq!(Assets::balance(0, 2), 19);
+        assert_eq!(Assets::balance(0, 3), 31);
+        assert_eq!(Assets::total_supply(0), 100);
     });
 }
 
 #[test]
 fn querying_total_supply_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Assets::issue(Origin::signed(1), 100));
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
         assert_eq!(Assets::balance(0, 1), 100);
         assert_ok!(Assets::transfer(Origin::signed(1), 0, 2, 50));
         assert_eq!(Assets::balance(0, 1), 50);
@@ -28,7 +55,7 @@ fn querying_total_supply_should_work() {
 #[test]
 fn transferring_amount_above_available_balance_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Assets::issue(Origin::signed(1), 100));
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
         assert_eq!(Assets::balance(0, 1), 100);
         assert_ok!(Assets::transfer(Origin::signed(1), 0, 2, 50));
         assert_eq!(Assets::balance(0, 1), 50);
@@ -39,7 +66,7 @@ fn transferring_amount_above_available_balance_should_work() {
 #[test]
 fn transferring_less_than_one_unit_should_not_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Assets::issue(Origin::signed(1), 100));
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
         assert_eq!(Assets::balance(0, 1), 100);
         assert_noop!(
             Assets::transfer(Origin::signed(1), 0, 2, 0),
@@ -51,7 +78,7 @@ fn transferring_less_than_one_unit_should_not_work() {
 #[test]
 fn transferring_more_units_than_total_supply_should_not_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Assets::issue(Origin::signed(1), 100));
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
         assert_eq!(Assets::balance(0, 1), 100);
         assert_noop!(
             Assets::transfer(Origin::signed(1), 0, 2, 101),
@@ -63,7 +90,7 @@ fn transferring_more_units_than_total_supply_should_not_work() {
 #[test]
 fn allowances_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Assets::issue(Origin::signed(1), 100));
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
         assert_eq!(Assets::balance(0, 1), 100);
         assert_eq!(Assets::balance(0, 2), 0);
         assert_eq!(Assets::balance(0, 3), 0);
@@ -78,7 +105,7 @@ fn allowances_should_work() {
 #[test]
 fn transfer_from_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Assets::issue(Origin::signed(1), 100));
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
         assert_eq!(Assets::balance(0, 1), 100);
         assert_eq!(Assets::balance(0, 2), 0);
         assert_eq!(Assets::balance(0, 3), 0);
@@ -99,7 +126,7 @@ fn transfer_from_should_work() {
 #[test]
 fn transfer_from_should_not_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Assets::issue(Origin::signed(1), 100));
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
         assert_ok!(Assets::allow(Origin::signed(1), 0, 2, 20));
         assert_eq!(Assets::allowances(0, 1, 2), 20);
 

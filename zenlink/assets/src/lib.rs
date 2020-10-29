@@ -3,14 +3,24 @@
 
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
 use frame_system::{ensure_signed, RawOrigin};
-use sp_runtime::traits::One;
-use sp_runtime::traits::{AtLeast32Bit, AtLeast32BitUnsigned, Member, StaticLookup, Zero};
+use sp_runtime::traits::{AtLeast32Bit, AtLeast32BitUnsigned, Member, StaticLookup, Zero, One};
+use codec::{Encode, Decode};
+use sp_runtime::RuntimeDebug;
 
 
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;
+
+type Symbol = [u8; 8];
+type Name = [u8; 16];
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, Default)]
+pub struct AssetInfo {
+    pub name: Name,
+    pub symbol: Symbol,
+    pub decimals: u8,
+}
 
 /// The module configuration trait.
 pub trait Trait: frame_system::Trait {
@@ -40,7 +50,7 @@ decl_module! {
         /// - 1 event.
         /// # </weight>
         #[weight = 0]
-        fn issue(origin, #[compact] total: T::Balance) {
+        fn issue(origin, #[compact] total: T::Balance, asset_info: AssetInfo) {
             let origin = ensure_signed(origin)?;
 
             let id = Self::next_asset_id();
@@ -48,6 +58,7 @@ decl_module! {
 
             <Balances<T>>::insert((id, &origin), total);
             <TotalSupply<T>>::insert(id, total);
+            <AssetInfos<T>>::insert(id, asset_info);
 
             Self::deposit_event(RawEvent::Issued(id, origin, total));
         }
@@ -122,8 +133,6 @@ decl_event! {
         Issued(AssetId, AccountId, Balance),
         /// Some assets were transferred. \[asset_id, from, to, amount\]
         Transferred(AssetId, AccountId, AccountId, Balance),
-        /// Some assets were destroyed. [asset_id, owner, balance]
-		Destroyed(AssetId, AccountId, Balance),
         /// Some assets were allowable \[asset_id, owner, spender, amount\]
         Approval(AssetId, AccountId, AccountId, Balance),
     }
@@ -144,6 +153,8 @@ decl_error! {
 
 decl_storage! {
     trait Store for Module<T: Trait> as Assets {
+        /// The info of the asset by any given asset id
+        AssetInfos: map hasher(twox_64_concat) T::AssetId => Option<AssetInfo>;
         /// The number of units of assets held by any given account.
         Balances: map hasher(blake2_128_concat) (T::AssetId, T::AccountId) => T::Balance;
         /// The next asset identifier up for grabs.
@@ -174,5 +185,10 @@ impl<T: Trait> Module<T> {
     /// Get the allowance balance of the spender under owner
     pub fn allowances(id: T::AssetId, owner: T::AccountId, spender: T::AccountId) -> T::Balance {
         <Allowances<T>>::get((id, owner, spender))
+    }
+
+    /// Get the info of the asset by th asset `id`
+    pub fn asset_info(id: T::AssetId) -> Option<AssetInfo> {
+        <AssetInfos<T>>::get(id)
     }
 }
