@@ -1,12 +1,13 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
-use frame_system::{ensure_signed, RawOrigin};
-use sp_runtime::traits::{AtLeast32Bit, AtLeast32BitUnsigned, Member, StaticLookup, Zero, One};
-use codec::{Encode, Decode};
-use sp_runtime::RuntimeDebug;
-
+use frame_system::ensure_signed;
+use sp_runtime::traits::{
+    AtLeast32Bit, AtLeast32BitUnsigned, CheckedSub, Member, One, Saturating, StaticLookup, Zero,
+};
+use sp_runtime::{DispatchResult, RuntimeDebug};
 
 #[cfg(test)]
 mod mock;
@@ -52,15 +53,7 @@ decl_module! {
         #[weight = 0]
         fn issue(origin, #[compact] total: T::Balance, asset_info: AssetInfo) {
             let origin = ensure_signed(origin)?;
-
-            let id = Self::next_asset_id();
-            <NextAssetId<T>>::mutate(|id| *id += One::one());
-
-            <Balances<T>>::insert((id, &origin), total);
-            <TotalSupply<T>>::insert(id, total);
-            <AssetInfos<T>>::insert(id, asset_info);
-
-            Self::deposit_event(RawEvent::Issued(id, origin, total));
+            Self::inner_issue(origin, total, asset_info);
         }
 
         /// Move some assets from one holder to another.
@@ -78,15 +71,9 @@ decl_module! {
             #[compact] amount: T::Balance
         ) {
             let origin = ensure_signed(origin)?;
-            let origin_account = (id, origin.clone());
-            let origin_balance = <Balances<T>>::get(&origin_account);
             let target = T::Lookup::lookup(target)?;
-            ensure!(!amount.is_zero(), Error::<T>::AmountZero);
-            ensure!(origin_balance >= amount, Error::<T>::BalanceLow);
 
-            Self::deposit_event(RawEvent::Transferred(id, origin, target.clone(), amount));
-            <Balances<T>>::insert(origin_account, origin_balance - amount);
-            <Balances<T>>::mutate((id, target), |balance| *balance += amount);
+            Self::inner_transfer(id, origin, target, amount)?;
         }
 
         #[weight = 0]
@@ -98,9 +85,7 @@ decl_module! {
             let owner = ensure_signed(origin)?;
             let spender = T::Lookup::lookup(spender)?;
 
-            Self::deposit_event(RawEvent::Approval(id, owner.clone(), spender.clone(), amount));
-
-            <Allowances<T>>::insert((id, owner, spender), amount);
+            Self::inner_approve(id, owner, spender, amount)?;
         }
 
         #[weight = 0]
@@ -112,13 +97,9 @@ decl_module! {
         ){
             let spender = ensure_signed(origin.clone())?;
             let owner = T::Lookup::lookup(from)?;
+            let target = T::Lookup::lookup(target)?;
 
-            let allowance = <Allowances<T>>::get((id, owner.clone(), spender.clone()));
-            ensure!(allowance >= amount, Error::<T>::AllowanceLow);
-
-            <Allowances<T>>::insert((id, owner.clone(), spender), allowance - amount);
-
-            Self::transfer(<T as frame_system::Trait>::Origin::from(RawOrigin::Signed(owner)), id, target, amount)?;
+            Self::inner_transfer_from(id, owner, spender, target, amount)?;
         }
     }
 }
@@ -129,12 +110,19 @@ decl_event! {
         <T as Trait>::Balance,
         <T as Trait>::AssetId,
     {
-        /// Some assets were issued. \[asset_id, owner, total_supply\]
+        /// Some assets were issued. \[asset_id, owner, initial_supply\]
         Issued(AssetId, AccountId, Balance),
-        /// Some assets were transferred. \[asset_id, from, to, amount\]
+        /// Some assets were transferred. \[asset_id, owner, target, amount\]
         Transferred(AssetId, AccountId, AccountId, Balance),
-        /// Some assets were allowable \[asset_id, owner, spender, amount\]
+        /// Some assets were allowable. \[asset_id, owner, spender, amount\]
         Approval(AssetId, AccountId, AccountId, Balance),
+
+        /// other module generated. e.g. dex
+
+        /// Some assets were burned. \[asset_id, owner, amount\]
+        Burned(AssetId, AccountId, Balance),
+        /// Some assets were inflated. \[asset_id, owner, amount\]
+        Inflated(AssetId, AccountId, Balance),
     }
 }
 
@@ -148,6 +136,8 @@ decl_error! {
         BalanceZero,
         /// Account allowance balance must be greater than or equal to the transfer_from amount
         AllowanceLow,
+        /// Asset has not been created
+        AssetNotExists,
     }
 }
 
@@ -170,11 +160,114 @@ decl_storage! {
 
 // The main implementation block for the module.
 impl<T: Trait> Module<T> {
+    /// private mutables
+
+    fn inner_issue(owner: T::AccountId, initial_supply: T::Balance, info: AssetInfo) -> T::AssetId {
+        let id = Self::next_asset_id();
+        <NextAssetId<T>>::mutate(|id| *id += One::one());
+
+        <Balances<T>>::insert((id, &owner), initial_supply);
+        <TotalSupply<T>>::insert(id, initial_supply);
+        <AssetInfos<T>>::insert(id, info);
+
+        Self::deposit_event(RawEvent::Issued(id, owner, initial_supply));
+
+        id
+    }
+
+    fn inner_transfer(
+        id: T::AssetId,
+        owner: T::AccountId,
+        target: T::AccountId,
+        amount: T::Balance,
+    ) -> DispatchResult {
+        let owner_balance = <Balances<T>>::get(&(id, owner.clone()));
+        ensure!(!amount.is_zero(), Error::<T>::AmountZero);
+        ensure!(owner_balance >= amount, Error::<T>::BalanceLow);
+
+        let new_balance = owner_balance.saturating_sub(amount);
+
+        <Balances<T>>::mutate((id, owner.clone()), |balance| *balance = new_balance);
+        <Balances<T>>::mutate((id, target.clone()), |balance| {
+            *balance = balance.saturating_add(amount)
+        });
+
+        Self::deposit_event(RawEvent::Transferred(id, owner, target, amount));
+
+        Ok(())
+    }
+
+    fn inner_approve(
+        id: T::AssetId,
+        owner: T::AccountId,
+        spender: T::AccountId,
+        amount: T::Balance,
+    ) -> DispatchResult {
+        <Allowances<T>>::mutate((id, owner.clone(), spender.clone()), |balance| {
+            *balance = amount
+        });
+
+        Self::deposit_event(RawEvent::Approval(id, owner, spender, amount));
+
+        Ok(())
+    }
+
+    fn inner_transfer_from(
+        id: T::AssetId,
+        owner: T::AccountId,
+        spender: T::AccountId,
+        target: T::AccountId,
+        amount: T::Balance,
+    ) -> DispatchResult {
+        let allowance = <Allowances<T>>::get((id, owner.clone(), spender.clone()));
+        let new_balance = allowance
+            .checked_sub(&amount)
+            .ok_or(Error::<T>::AllowanceLow)?;
+
+        Self::inner_transfer(id, owner.clone(), target, amount)?;
+
+        <Allowances<T>>::mutate((id, owner, spender), |balance| *balance = new_balance);
+
+        Ok(())
+    }
+
+    fn inner_inflate(id: T::AssetId, owner: T::AccountId, amount: T::Balance) -> DispatchResult {
+        ensure!(Self::asset_info(id).is_some(), Error::<T>::AssetNotExists);
+
+        let new_balance = <Balances<T>>::get(&(id, owner.clone())).saturating_add(amount);
+
+        <Balances<T>>::mutate((id, owner.clone()), |balance| *balance = new_balance);
+        <TotalSupply<T>>::mutate(id, |supply| {
+            *supply = supply.saturating_add(amount);
+        });
+
+        Self::deposit_event(RawEvent::Inflated(id, owner, amount));
+
+        Ok(())
+    }
+
+    fn inner_burn(id: T::AssetId, owner: T::AccountId, amount: T::Balance) -> DispatchResult {
+        ensure!(Self::asset_info(id).is_some(), Error::<T>::AssetNotExists);
+
+        let new_balance = <Balances<T>>::get(&(id, owner.clone()))
+            .checked_sub(&amount)
+            .ok_or(Error::<T>::BalanceLow)?;
+
+        <Balances<T>>::mutate((id, owner.clone()), |balance| *balance = new_balance);
+        <TotalSupply<T>>::mutate(id, |supply| {
+            *supply = supply.saturating_sub(amount);
+        });
+
+        Self::deposit_event(RawEvent::Burned(id, owner, amount));
+
+        Ok(())
+    }
+
     // Public immutables
 
-    /// Get the asset `id` balance of `who`.
-    pub fn balance(id: T::AssetId, who: T::AccountId) -> T::Balance {
-        <Balances<T>>::get((id, who))
+    /// Get the asset `id` balance of `owner`.
+    pub fn balance(id: T::AssetId, owner: T::AccountId) -> T::Balance {
+        <Balances<T>>::get((id, owner))
     }
 
     /// Get the total supply of an asset `id`.
@@ -190,5 +283,109 @@ impl<T: Trait> Module<T> {
     /// Get the info of the asset by th asset `id`
     pub fn asset_info(id: T::AssetId) -> Option<AssetInfo> {
         <AssetInfos<T>>::get(id)
+    }
+}
+
+pub trait CommonErc20<AssetId, AccountId> {
+    type Balance: Member + Parameter + AtLeast32BitUnsigned + Default + Copy;
+
+    fn total_supply(asset_id: AssetId) -> Self::Balance;
+    fn balance_of(asset_id: AssetId, owner: AccountId) -> Self::Balance;
+    fn allowances(asset_id: AssetId, owner: AccountId, spender: AccountId) -> Self::Balance;
+    fn transfer(
+        asset_id: AssetId,
+        owner: AccountId,
+        target: AccountId,
+        amount: Self::Balance,
+    ) -> DispatchResult;
+    fn transfer_from(
+        asset_id: AssetId,
+        owner: AccountId,
+        spender: AccountId,
+        target: AccountId,
+        amount: Self::Balance,
+    ) -> DispatchResult;
+    fn asset_info(id: AssetId) -> Option<AssetInfo>;
+}
+
+pub trait BeyondErc20<AssetId, AccountId>: CommonErc20<AssetId, AccountId> {
+    fn issue(owner: AccountId, initial_supply: Self::Balance, info: AssetInfo) -> AssetId;
+    fn inflate(asset_id: AssetId, owner: AccountId, inflation: Self::Balance) -> DispatchResult;
+    fn approve(
+        asset_id: AssetId,
+        owner: AccountId,
+        spender: AccountId,
+        amount: Self::Balance,
+    ) -> DispatchResult;
+    fn burn(asset_id: AssetId, owner: AccountId, amount: Self::Balance) -> DispatchResult;
+}
+
+impl<T: Trait> CommonErc20<T::AssetId, T::AccountId> for Module<T> {
+    type Balance = T::Balance;
+
+    fn total_supply(asset_id: T::AssetId) -> Self::Balance {
+        Self::total_supply(asset_id)
+    }
+
+    fn balance_of(asset_id: T::AssetId, owner: T::AccountId) -> Self::Balance {
+        Self::balance(asset_id, owner)
+    }
+
+    fn allowances(
+        asset_id: T::AssetId,
+        owner: T::AccountId,
+        spender: T::AccountId,
+    ) -> Self::Balance {
+        Self::allowances(asset_id, owner, spender)
+    }
+
+    fn transfer(
+        asset_id: T::AssetId,
+        owner: T::AccountId,
+        target: T::AccountId,
+        amount: Self::Balance,
+    ) -> DispatchResult {
+        Self::inner_transfer(asset_id, owner, target, amount)
+    }
+
+    fn transfer_from(
+        asset_id: T::AssetId,
+        owner: T::AccountId,
+        spender: T::AccountId,
+        target: T::AccountId,
+        amount: Self::Balance,
+    ) -> DispatchResult {
+        Self::inner_transfer_from(asset_id, owner, spender, target, amount)
+    }
+
+    fn asset_info(asset_id: T::AssetId) -> Option<AssetInfo> {
+        Self::asset_info(asset_id)
+    }
+}
+
+impl<T: Trait> BeyondErc20<T::AssetId, T::AccountId> for Module<T> {
+    fn issue(owner: T::AccountId, initial_supply: Self::Balance, info: AssetInfo) -> T::AssetId {
+        Self::inner_issue(owner, initial_supply, info)
+    }
+
+    fn inflate(
+        asset_id: T::AssetId,
+        owner: T::AccountId,
+        inflation: Self::Balance,
+    ) -> DispatchResult {
+        Self::inner_inflate(asset_id, owner, inflation)
+    }
+
+    fn approve(
+        asset_id: T::AssetId,
+        owner: T::AccountId,
+        spender: T::AccountId,
+        amount: Self::Balance,
+    ) -> DispatchResult {
+        Self::inner_approve(asset_id, owner, spender, amount)
+    }
+
+    fn burn(asset_id: T::AssetId, owner: T::AccountId, amount: Self::Balance) -> DispatchResult {
+        Self::inner_burn(asset_id, owner, amount)
     }
 }

@@ -1,9 +1,9 @@
-use crate::{mock::*, Error, AssetInfo, Symbol, Name};
+use crate::{mock::*, AssetInfo, Error, Name, Symbol};
 use frame_support::{assert_noop, assert_ok};
 
-const TEST_ASSET_NAME : Name = *b"zenlink_swap_v_1";
-const TEST_ASSET_SYMBOL :Symbol = *b"zlktest1";
-const TEST_ASSET_DECIMALS :u8 = 18;
+const TEST_ASSET_NAME: Name = *b"zenlink_swap_v_1";
+const TEST_ASSET_SYMBOL: Symbol = *b"zlktest1";
+const TEST_ASSET_DECIMALS: u8 = 18;
 
 const TEST_ASSET_INFO: AssetInfo = AssetInfo {
     name: TEST_ASSET_NAME,
