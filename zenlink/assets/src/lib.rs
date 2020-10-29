@@ -121,8 +121,8 @@ decl_event! {
 
         /// Some assets were burned. \[asset_id, owner, amount\]
         Burned(AssetId, AccountId, Balance),
-        /// Some assets were inflated. \[asset_id, owner, amount\]
-        Inflated(AssetId, AccountId, Balance),
+        /// Some assets were minted. \[asset_id, owner, amount\]
+        Minted(AssetId, AccountId, Balance),
     }
 }
 
@@ -243,7 +243,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn inner_inflate(id: &T::AssetId, owner: &T::AccountId, amount: T::Balance) -> DispatchResult {
+    fn inner_mint(id: &T::AssetId, owner: &T::AccountId, amount: T::Balance) -> DispatchResult {
         ensure!(Self::asset_info(id).is_some(), Error::<T>::AssetNotExists);
 
         let new_balance = <Balances<T>>::get((id, owner)).saturating_add(amount);
@@ -253,7 +253,7 @@ impl<T: Trait> Module<T> {
             *supply = supply.saturating_add(amount);
         });
 
-        Self::deposit_event(RawEvent::Inflated(id.clone(), owner.clone(), amount));
+        Self::deposit_event(RawEvent::Minted(id.clone(), owner.clone(), amount));
 
         Ok(())
     }
@@ -322,7 +322,7 @@ pub trait CommonErc20<AssetId, AccountId> {
 
 pub trait BeyondErc20<AssetId, AccountId>: CommonErc20<AssetId, AccountId> {
     fn issue(owner: &AccountId, initial_supply: Self::Balance, info: &AssetInfo) -> AssetId;
-    fn inflate(asset_id: &AssetId, owner: &AccountId, inflation: Self::Balance) -> DispatchResult;
+    fn mint(asset_id: &AssetId, owner: &AccountId, inflation: Self::Balance) -> DispatchResult;
     fn approve(
         asset_id: &AssetId,
         owner: &AccountId,
@@ -380,12 +380,12 @@ impl<T: Trait> BeyondErc20<T::AssetId, T::AccountId> for Module<T> {
         Self::inner_issue(owner, initial_supply, info)
     }
 
-    fn inflate(
+    fn mint(
         asset_id: &T::AssetId,
         owner: &T::AccountId,
         inflation: Self::Balance,
     ) -> DispatchResult {
-        Self::inner_inflate(asset_id, owner, inflation)
+        Self::inner_mint(asset_id, owner, inflation)
     }
 
     fn approve(
