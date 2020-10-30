@@ -288,10 +288,17 @@ impl pallet_sudo::Trait for Runtime {
 	type Call = Call;
 }
 
-impl dex::Trait for Runtime {
+impl zenlink_assets::Trait for Runtime {
 	type Event = Event;
 	type Balance = u64;
 	type AssetId = u32;
+}
+
+impl zenlink_dex::Trait for Runtime {
+	type Event = Event;
+	type ExchangeId = u32;
+	type Currency = Balances;
+	type SimilarErc20 = ZenlinkAssets;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -310,7 +317,8 @@ construct_runtime!(
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Contracts: pallet_contracts::{Module, Call, Config, Storage, Event<T>},
-		Dex: dex::{Module, Call, Storage, Event<T>},
+		ZenlinkAssets: zenlink_assets::{Module, Call, Storage, Event<T>},
+		ZenlinkDex: zenlink_dex::{Module, Call, Storage, Event<T>},
 	}
 );
 

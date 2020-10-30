@@ -174,7 +174,7 @@ impl<T: Trait> Module<T> {
         <TotalSupply<T>>::insert(id, initial_supply);
         <AssetInfos<T>>::insert(id, info);
 
-        Self::deposit_event(RawEvent::Issued(id, owner.clone(), initial_supply));
+        // Self::deposit_event(RawEvent::Issued(id, owner.clone(), initial_supply));
 
         id
     }
@@ -196,12 +196,12 @@ impl<T: Trait> Module<T> {
             *balance = balance.saturating_add(amount)
         });
 
-        Self::deposit_event(RawEvent::Transferred(
-            id.clone(),
-            owner.clone(),
-            target.clone(),
-            amount,
-        ));
+        // Self::deposit_event(RawEvent::Transferred(
+        //     id.clone(),
+        //     owner.clone(),
+        //     target.clone(),
+        //     amount,
+        // ));
 
         Ok(())
     }
@@ -214,12 +214,12 @@ impl<T: Trait> Module<T> {
     ) -> DispatchResult {
         <Allowances<T>>::mutate((id, owner, spender), |balance| *balance = amount);
 
-        Self::deposit_event(RawEvent::Approval(
-            id.clone(),
-            owner.clone(),
-            spender.clone(),
-            amount,
-        ));
+        // Self::deposit_event(RawEvent::Approval(
+        //     id.clone(),
+        //     owner.clone(),
+        //     spender.clone(),
+        //     amount,
+        // ));
 
         Ok(())
     }
@@ -253,7 +253,7 @@ impl<T: Trait> Module<T> {
             *supply = supply.saturating_add(amount);
         });
 
-        Self::deposit_event(RawEvent::Minted(id.clone(), owner.clone(), amount));
+        // Self::deposit_event(RawEvent::Minted(id.clone(), owner.clone(), amount));
 
         Ok(())
     }
@@ -270,7 +270,7 @@ impl<T: Trait> Module<T> {
             *supply = supply.saturating_sub(amount);
         });
 
-        Self::deposit_event(RawEvent::Burned(id.clone(), owner.clone(), amount));
+        // Self::deposit_event(RawEvent::Burned(id.clone(), owner.clone(), amount));
 
         Ok(())
     }

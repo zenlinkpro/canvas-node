@@ -689,6 +689,7 @@ dependencies = [
  "sp-version",
  "substrate-wasm-builder-runner",
  "zenlink-assets",
+ "zenlink-dex",
 ]
 
 [[package]]
@@ -7991,6 +7992,19 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "zenlink-dex"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "zenlink-assets",
 ]
 
 [[package]]
