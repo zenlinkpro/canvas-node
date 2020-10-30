@@ -290,7 +290,7 @@ impl pallet_sudo::Trait for Runtime {
 
 impl zenlink_assets::Trait for Runtime {
 	type Event = Event;
-	type Balance = u64;
+	type TokenBalance = u64;
 	type AssetId = u32;
 }
 
@@ -298,7 +298,6 @@ impl zenlink_dex::Trait for Runtime {
 	type Event = Event;
 	type ExchangeId = u32;
 	type Currency = Balances;
-	type SimilarErc20 = ZenlinkAssets;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

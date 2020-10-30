@@ -14,7 +14,7 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 
-use zenlink_assets::{AssetInfo, BeyondErc20, CommonErc20};
+use zenlink_assets::AssetInfo;
 
 const ZLK: &AssetInfo = &AssetInfo {
     name: *b"liquidity_zlk_v1",
@@ -36,10 +36,8 @@ pub struct Exchange<AccountId, AssetId> {
 
 type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
-type TokenBalance<T> = <<T as Trait>::SimilarErc20 as CommonErc20<
-    <T as zenlink_assets::Trait>::AssetId,
-    <T as frame_system::Trait>::AccountId,
->>::Balance;
+
+type TokenBalance<T> = <T as zenlink_assets::Trait>::TokenBalance;
 
 /// The dex's module id, used for deriving sovereign account IDs.
 const MODULE_ID: ModuleId = ModuleId(*b"zlk_dex1");
@@ -52,8 +50,6 @@ pub trait Trait: frame_system::Trait + zenlink_assets::Trait {
     type ExchangeId: Parameter + Member + AtLeast32Bit + Default + Copy + MaybeSerializeDeserialize;
 
     type Currency: Currency<Self::AccountId>;
-
-    type SimilarErc20: BeyondErc20<Self::AssetId, Self::AccountId>;
 }
 
 decl_storage! {
@@ -67,10 +63,10 @@ decl_storage! {
 
 decl_event! {
     pub enum Event<T> where
-        AccountId = <T as frame_system::Trait>::AccountId,
+       AccountId = <T as frame_system::Trait>::AccountId,
        BalanceOf = BalanceOf<T>,
        Id = <T as Trait>::ExchangeId,
-       TokenBalance = TokenBalance<T>,
+       TokenBalance = <T as zenlink_assets::Trait>::TokenBalance,
     {
         /// Logs (ExchangeId, ExchangeAccount)
         ExchangeCreated(Id, AccountId),
@@ -134,7 +130,7 @@ decl_module! {
             token_id: T::AssetId,
         ) -> dispatch::DispatchResult
         {
-            ensure!(T::SimilarErc20::asset_info(&token_id).is_some(), Error::<T>::TokenNotExists);
+            ensure!(<zenlink_assets::Module<T>>::asset_info(&token_id).is_some(), Error::<T>::TokenNotExists);
             ensure!(Self::token_to_exchange(token_id).is_none(), Error::<T>::ExchangeAlreadyExists);
 
             let exchange_id = Self::next_exchange_id();
@@ -142,9 +138,9 @@ decl_module! {
                 .ok_or("Overflow")?;
 
             let account: T::AccountId = MODULE_ID.into_sub_account(exchange_id);
-            // create a new lp token for exchange
-            let liquidity_id = T::SimilarErc20::issue(&account, Zero::zero(), ZLK);
 
+            // create a new lp token for exchange
+            let liquidity_id = <zenlink_assets::Module<T>>::inner_issue(&account, Zero::zero(), ZLK);
             let new_exchange = Exchange {
                 token_id: token_id,
                 liquidity_id: liquidity_id,
@@ -155,7 +151,7 @@ decl_module! {
             <Exchanges<T>>::insert(exchange_id, new_exchange);
             <NextExchangeId<T>>::put(next_id);
 
-            // Self::deposit_event(RawEvent::ExchangeCreated(exchange_id, account));
+            Self::deposit_event(RawEvent::ExchangeCreated(exchange_id, account));
 
             Ok(())
         }
@@ -179,7 +175,7 @@ decl_module! {
             ensure!(currency_amount > Zero::zero(), Error::<T>::ZeroCurrency);
 
             if let Some(exchange) = Self::get_exchange(exchange_id) {
-                let total_liquidity = T::SimilarErc20::total_supply(&exchange.liquidity_id);
+                let total_liquidity = <zenlink_assets::Module<T>>::total_supply(&exchange.liquidity_id);
 
                 if total_liquidity > Zero::zero() {
                     ensure!(min_liquidity > Zero::zero(), Error::<T>::RequestedZeroLiquidity);
@@ -192,19 +188,21 @@ decl_module! {
                     ensure!(liquidity_minted >= min_liquidity, Error::<T>::TooLowLiquidity);
 
                     T::Currency::transfer(&who, &exchange.account, currency_amount, ExistenceRequirement::KeepAlive)?;
-                    T::SimilarErc20::mint(&exchange.liquidity_id, &who, liquidity_minted)?;
-                    T::SimilarErc20::transfer_from(&exchange.token_id, &who, &exchange.account, &exchange.account, token_amount)?;
-                    // Self::deposit_event(RawEvent::LiquidityAdded(exchange_id, who, currency_amount, token_amount));
+                    <zenlink_assets::Module<T>>::inner_mint(&exchange.liquidity_id, &who, liquidity_minted)?;
+                    <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &who, &exchange.account, &exchange.account, token_amount)?;
+
+                    Self::deposit_event(RawEvent::LiquidityAdded(exchange_id, who, currency_amount, token_amount));
                 } else {
-                    // Fresh exchange with no liquidity ~
+                    // Fresh exchange with no liquidity
                     let token_amount = max_tokens;
                     T::Currency::transfer(&who, &exchange.account, currency_amount, ExistenceRequirement::KeepAlive)?;
 
                     let initial_liquidity: u64 = T::Currency::free_balance(&exchange.account).saturated_into::<u64>();
-                    T::SimilarErc20::mint(&exchange.liquidity_id, &who, initial_liquidity.saturated_into())?;
 
-                    T::SimilarErc20::transfer_from(&exchange.token_id, &who, &exchange.account, &exchange.account, token_amount)?;
-                    // Self::deposit_event(RawEvent::LiquidityAdded(exchange_id, who, currency_amount, token_amount));
+                    <zenlink_assets::Module<T>>::inner_mint(&exchange.liquidity_id, &who, initial_liquidity.saturated_into())?;
+                    <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &who, &exchange.account, &exchange.account, token_amount)?;
+
+                    Self::deposit_event(RawEvent::LiquidityAdded(exchange_id, who, currency_amount, token_amount));
                 }
 
                 Ok(())
@@ -230,7 +228,7 @@ decl_module! {
             ensure!(shares_to_burn > Zero::zero(), Error::<T>::BurnZeroShares);
 
             if let Some(exchange) = Self::get_exchange(exchange_id) {
-                let total_liquidity = T::SimilarErc20::total_supply(&exchange.liquidity_id);
+                let total_liquidity = <zenlink_assets::Module<T>>::total_supply(&exchange.liquidity_id);
 
                 ensure!(total_liquidity > Zero::zero(), Error::<T>::NoLiquidity);
 
@@ -242,13 +240,11 @@ decl_module! {
                 ensure!(Self::unconvert(currency_amount) >= min_currency, Error::<T>::NotEnoughCurrency);
                 ensure!(token_amount >= min_tokens, Error::<T>::NotEnoughTokens);
 
-                T::SimilarErc20::burn(&exchange.liquidity_id, &who, shares_to_burn)?;
-
+                <zenlink_assets::Module<T>>::inner_burn(&exchange.liquidity_id, &who, shares_to_burn)?;
                 T::Currency::transfer(&exchange.account, &who, Self::unconvert(currency_amount), ExistenceRequirement::AllowDeath)?;
-                // Need to ensure this happens.
-                T::SimilarErc20::transfer(&exchange.token_id, &exchange.account, &who, token_amount)?;
+                <zenlink_assets::Module<T>>::inner_transfer(&exchange.token_id, &exchange.account, &who, token_amount)?;
 
-                // Self::deposit_event(RawEvent::LiquidityRemoved(exchange_id, who, Self::unconvert(currency_amount), token_amount));
+                Self::deposit_event(RawEvent::LiquidityRemoved(exchange_id, who, Self::unconvert(currency_amount), token_amount));
 
                 Ok(())
             } else {
@@ -285,9 +281,9 @@ decl_module! {
                 ensure!(tokens_bought >= min_tokens, Error::<T>::NotEnoughTokens);
 
                 T::Currency::transfer(&buyer, &exchange.account, currency_sold, ExistenceRequirement::KeepAlive)?;
-                T::SimilarErc20::transfer(&exchange.token_id, &exchange.account, &recipient, tokens_bought)?;
+                <zenlink_assets::Module<T>>::inner_transfer(&exchange.token_id, &exchange.account, &recipient, tokens_bought)?;
 
-                // Self::deposit_event(RawEvent::TokenPurchase(exchange_id, buyer, currency_sold, tokens_bought, recipient));
+                Self::deposit_event(RawEvent::TokenPurchase(exchange_id, buyer, currency_sold, tokens_bought, recipient));
 
                 Ok(())
             } else {
@@ -324,9 +320,9 @@ decl_module! {
                 ensure!(Self::unconvert(currency_sold) <= max_currency, Error::<T>::TooExpensiveCurrency);
 
                 T::Currency::transfer(&buyer, &exchange.account, Self::unconvert(currency_sold), ExistenceRequirement::KeepAlive)?;
-                T::SimilarErc20::transfer(&exchange.token_id, &exchange.account, &recipient, tokens_bought)?;
+                <zenlink_assets::Module<T>>::inner_transfer(&exchange.token_id, &exchange.account, &recipient, tokens_bought)?;
 
-                // Self::deposit_event(RawEvent::TokenPurchase(exchange_id, buyer, Self::unconvert(currency_sold), tokens_bought, recipient));
+                Self::deposit_event(RawEvent::TokenPurchase(exchange_id, buyer, Self::unconvert(currency_sold), tokens_bought, recipient));
 
                 Ok(())
             } else {
@@ -363,9 +359,9 @@ decl_module! {
                 ensure!(currency_bought >= Self::convert(min_currency), Error::<T>::NotEnoughCurrency);
 
                 T::Currency::transfer(&exchange.account, &recipient, Self::unconvert(currency_bought), ExistenceRequirement::AllowDeath)?;
-                T::SimilarErc20::transfer_from(&exchange.token_id, &buyer, &exchange.account, &exchange.account, tokens_sold)?;
+                <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &buyer, &exchange.account, &exchange.account, tokens_sold)?;
 
-                // Self::deposit_event(RawEvent::CurrencyPurchase(exchange_id, buyer, Self::unconvert(currency_bought), tokens_sold, recipient));
+                Self::deposit_event(RawEvent::CurrencyPurchase(exchange_id, buyer, Self::unconvert(currency_bought), tokens_sold, recipient));
 
                 Ok(())
             } else {
@@ -402,9 +398,9 @@ decl_module! {
                 ensure!(max_tokens >= tokens_sold, Error::<T>::TooExpensiveTokens);
 
                 T::Currency::transfer(&exchange.account, &buyer, currency_bought, ExistenceRequirement::AllowDeath)?;
-                T::SimilarErc20::transfer_from(&exchange.token_id, &recipient, &exchange.account, &exchange.account, tokens_sold)?;
+                <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &recipient, &exchange.account, &exchange.account, tokens_sold)?;
 
-                // Self::deposit_event(RawEvent::CurrencyPurchase(exchange_id, buyer, currency_bought, tokens_sold, recipient));
+                Self::deposit_event(RawEvent::CurrencyPurchase(exchange_id, buyer, currency_bought, tokens_sold, recipient));
 
                 Ok(())
             } else {
@@ -482,7 +478,8 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_token_reserve(exchange: &Exchange<T::AccountId, T::AssetId>) -> TokenBalance<T> {
-        T::SimilarErc20::balance_of(&exchange.token_id, &exchange.account)
+        // T::SimilarErc20::balance_of(&exchange.token_id, &exchange.account)
+        <zenlink_assets::Module<T>>::balance_of(&exchange.token_id, &exchange.account)
     }
 
     fn get_currency_reserve(exchange: &Exchange<T::AccountId, T::AssetId>) -> BalanceOf<T> {
