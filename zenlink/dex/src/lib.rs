@@ -8,13 +8,18 @@ use sp_runtime::traits::{
 use sp_runtime::ModuleId;
 
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
+    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, debug::native::*,
     traits::{Currency, ExistenceRequirement},
     Parameter,
 };
 use frame_system::ensure_signed;
 
 use zenlink_assets::AssetInfo;
+
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
 
 const ZLK: &AssetInfo = &AssetInfo {
     name: *b"liquidity_zlk_v1",
@@ -428,23 +433,53 @@ impl<T: Trait> Module<T> {
         )
     }
 
-    // pub fn get_currency_to_token_output_price(exchange: &Exchange<T::AccountId, T::AssetId>, tokens_bought: TokenBalance<T>)
-    // 	-> TokenBalance<T>
-    // {
+    pub fn get_currency_to_token_output_price(exchange: &Exchange<T::AccountId, T::AssetId>, tokens_bought: TokenBalance<T>)
+    	-> TokenBalance<T>
+    {
+        if tokens_bought == Zero::zero() {
+            return Zero::zero();
+        }
 
-    // }
+        let token_reserve = Self::get_token_reserve(exchange);
+        let currency_reserve = Self::get_currency_reserve(exchange);
+        Self::get_output_price(
+            tokens_bought,
+            Self::convert(currency_reserve),
+            token_reserve,
+        )
+    }
 
-    // pub fn get_token_to_currency_input_price(exchange: &Exchange<T::AccountId, T::AssetId>, tokens_sold: TokenBalance<T>)
-    // 	-> TokenBalance<T>
-    // {
+    pub fn get_token_to_currency_input_price(exchange: &Exchange<T::AccountId, T::AssetId>, tokens_sold: TokenBalance<T>)
+    	-> TokenBalance<T>
+    {
+        if tokens_sold == Zero::zero() {
+            return Zero::zero();
+        }
 
-    // }
+        let token_reserve = Self::get_token_reserve(exchange);
+        let currency_reserve = Self::get_currency_reserve(exchange);
+        Self::get_input_price(
+            tokens_sold,
+            token_reserve,
+            Self::convert(currency_reserve),
+        )
+    }
 
-    // pub fn get_token_to_currency_output_price(exchange: &Exchange<T::AccountId, T::AssetId>, currency_bought: BalanceOf<T>)
-    // 	-> TokenBalance<T>
-    // {
+    pub fn get_token_to_currency_output_price(exchange: &Exchange<T::AccountId, T::AssetId>, currency_bought: BalanceOf<T>)
+    	-> TokenBalance<T>
+    {
+        if currency_bought == Zero::zero() {
+            return Zero::zero();
+        }
 
-    // }
+        let token_reserve = Self::get_token_reserve(exchange);
+        let currency_reserve = Self::get_currency_reserve(exchange);
+        Self::get_output_price(
+            Self::convert(currency_bought),
+            token_reserve,
+            Self::convert(currency_reserve),
+        )
+    }
 
     fn get_output_price(
         output_amount: TokenBalance<T>,
@@ -478,7 +513,6 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_token_reserve(exchange: &Exchange<T::AccountId, T::AssetId>) -> TokenBalance<T> {
-        // T::SimilarErc20::balance_of(&exchange.token_id, &exchange.account)
         <zenlink_assets::Module<T>>::balance_of(&exchange.token_id, &exchange.account)
     }
 
