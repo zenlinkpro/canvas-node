@@ -94,7 +94,7 @@ fn allowances_should_work() {
         assert_eq!(Assets::balance_of(&0, &1), 100);
         assert_eq!(Assets::balance_of(&0, &2), 0);
         assert_eq!(Assets::balance_of(&0, &3), 0);
-        assert_ok!(Assets::allow(Origin::signed(1), 0, 2, 20));
+        assert_ok!(Assets::approve(Origin::signed(1), 0, 2, 20));
         assert_eq!(Assets::allowances(&0, &1, &2), 20);
         assert_eq!(Assets::balance_of(&0, &1), 100);
         assert_eq!(Assets::balance_of(&0, &2), 0);
@@ -110,7 +110,7 @@ fn transfer_from_should_work() {
         assert_eq!(Assets::balance_of(&0, &2), 0);
         assert_eq!(Assets::balance_of(&0, &3), 0);
 
-        assert_ok!(Assets::allow(Origin::signed(1), 0, 2, 20));
+        assert_ok!(Assets::approve(Origin::signed(1), 0, 2, 20));
         assert_eq!(Assets::allowances(&0, &1, &2), 20);
 
         assert_eq!(Assets::balance_of(&0, &1), 100);
@@ -127,7 +127,7 @@ fn transfer_from_should_work() {
 fn transfer_from_should_not_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
-        assert_ok!(Assets::allow(Origin::signed(1), 0, 2, 20));
+        assert_ok!(Assets::approve(Origin::signed(1), 0, 2, 20));
         assert_eq!(Assets::allowances(&0, &1, &2), 20);
 
         assert_noop!(

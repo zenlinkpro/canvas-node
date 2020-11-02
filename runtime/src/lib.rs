@@ -9,7 +9,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use sp_std::prelude::*;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
-	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature,
+	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature, ModuleId,
 	transaction_validity::{TransactionValidity, TransactionSource},
 };
 use sp_runtime::traits::{
@@ -294,10 +294,15 @@ impl zenlink_assets::Trait for Runtime {
 	type AssetId = u32;
 }
 
+parameter_types! {
+    pub const DEXModuleId: ModuleId = ModuleId(*b"zlk_dex1");
+}
+
 impl zenlink_dex::Trait for Runtime {
 	type Event = Event;
 	type ExchangeId = u32;
 	type Currency = Balances;
+	type ModuleId = DEXModuleId;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

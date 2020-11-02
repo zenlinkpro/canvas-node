@@ -4,7 +4,7 @@ use sp_core::H256;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
-    Perbill,
+    ModuleId, Perbill,
 };
 
 pub use zenlink_assets::AssetInfo;
@@ -71,10 +71,15 @@ impl zenlink_assets::Trait for Test {
     type AssetId = u32;
 }
 
+parameter_types! {
+    pub const DEXModuleId: ModuleId = ModuleId(*b"zlk_dex1");
+}
+
 impl Trait for Test {
     type Event = ();
     type ExchangeId = u32;
     type Currency = pallet_balances::Module<Test>;
+    type ModuleId = DEXModuleId;
 }
 
 pub type Currency = pallet_balances::Module<Test>;
