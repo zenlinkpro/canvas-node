@@ -136,3 +136,60 @@ fn transfer_from_should_not_work() {
         );
     });
 }
+
+#[test]
+fn inner_mint_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
+        assert_eq!(Assets::balance_of(&0, &1), 100);
+
+        assert_ok!(Assets::inner_mint(&0, &1, 100));
+        assert_eq!(Assets::balance_of(&0, &1), 200);
+    });
+}
+
+#[test]
+fn inner_burn_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
+        assert_eq!(Assets::balance_of(&0, &1), 100);
+
+        assert_ok!(Assets::inner_burn(&0, &1, 100));
+        assert_eq!(Assets::balance_of(&0, &1), 0);
+    });
+}
+
+#[test]
+fn inner_burn_should_not_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
+        assert_eq!(Assets::balance_of(&0, &1), 100);
+
+        assert_noop!(
+            Assets::inner_burn(&0, &1, 200),
+            Error::<Test>::BalanceLow,
+        );
+    });
+}
+
+#[test]
+fn inner_mint_transfer_burn_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Assets::issue(Origin::signed(1), 100, TEST_ASSET_INFO));
+        assert_eq!(Assets::balance_of(&0, &1), 100);
+
+        assert_ok!(Assets::inner_mint(&0, &1, 100));
+        assert_eq!(Assets::balance_of(&0, &1), 200);
+
+        assert_ok!(Assets::transfer(Origin::signed(1), 0, 2, 150));
+        assert_eq!(Assets::balance_of(&0, &1), 50);
+        assert_eq!(Assets::balance_of(&0, &2), 150);
+
+        assert_ok!(Assets::inner_burn(&0, &2, 150));
+
+        assert_noop!(
+            Assets::inner_burn(&0, &1, 200),
+            Error::<Test>::BalanceLow,
+        );
+    });
+}
