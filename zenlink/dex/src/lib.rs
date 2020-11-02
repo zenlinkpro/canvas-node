@@ -8,7 +8,7 @@ use sp_runtime::traits::{
 use sp_runtime::ModuleId;
 
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, debug::native::*,
+    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
     traits::{Currency, ExistenceRequirement},
     Parameter,
 };
@@ -65,7 +65,6 @@ decl_storage! {
     }
 }
 
-
 decl_event! {
     pub enum Event<T> where
        AccountId = <T as frame_system::Trait>::AccountId,
@@ -75,14 +74,16 @@ decl_event! {
     {
         /// Logs (ExchangeId, ExchangeAccount)
         ExchangeCreated(Id, AccountId),
-        /// Logs (ExchangeId, ExchangeAccount, currency_input, token_input)
+        /// Logs (ExchangeId, ExchangeAccount, Currency_input, Token_input)
         LiquidityAdded(Id, AccountId, BalanceOf, TokenBalance),
-        /// Logs (ExchangeId, ExchangeAccount, currency_output, token_output)
+        /// Logs (ExchangeId, ExchangeAccount, Currency_output, Token_output)
         LiquidityRemoved(Id, AccountId, BalanceOf, TokenBalance),
-        /// Logs (ExchangeId, buyer, currency_bought, tokens_sold, recipient)
+        /// Logs (ExchangeId, Buyer, Currency_bought, Tokens_sold, Recipient)
         CurrencyPurchase(Id, AccountId, BalanceOf, TokenBalance, AccountId),
-        /// Logs (ExchangeId, buyer, currency_sold, tokens_bought, recipient)
+        /// Logs (ExchangeId, Buyer, Currency_sold, Tokens_bought, Recipient)
         TokenPurchase(Id, AccountId, BalanceOf, TokenBalance, AccountId),
+        /// Logs (ExchangeId, Other_ExchangeId, Buyer, Tokens_sold, Other_tokens_bought, Recipient)
+        OtherTokenPurchase(Id, Id, AccountId, TokenBalance, TokenBalance, AccountId),
     }
 }
 
@@ -412,6 +413,95 @@ decl_module! {
                 Err(Error::<T>::ExchangeNotExists)?
             }
         }
+
+        #[weight = 0]
+        pub fn token_to_token_input_by_exchange_id(origin,
+            exchange_id:  T::ExchangeId,
+            other_exchange_id: T::ExchangeId,
+            tokens_sold: TokenBalance<T>,
+            min_other_tokens: TokenBalance<T>,
+            deadline: T::BlockNumber,
+            recipient: T::AccountId,
+        ) -> dispatch::DispatchResult
+        {
+            let now = frame_system::Module::<T>::block_number();
+            ensure!(deadline >= now, Error::<T>::Deadline);
+
+            let buyer = ensure_signed(origin)?;
+
+            ensure!(tokens_sold > Zero::zero(), Error::<T>::ZeroTokens);
+            ensure!(min_other_tokens > Zero::zero(), Error::<T>::ZeroTokens);
+
+            let get_exchange = Self::get_exchange(exchange_id);
+            let get_othere_exchange = Self::get_exchange(other_exchange_id);
+            if get_exchange.is_none() || get_othere_exchange.is_none() {
+                return Err(Error::<T>::ExchangeNotExists)?
+            }
+            let exchange = get_exchange.unwrap();
+            let other_exchange = get_othere_exchange.unwrap();
+
+            let token_reserve = Self::get_token_reserve(&exchange);
+            let currency_reserve = Self::get_currency_reserve(&exchange);
+            let currency_bought = Self::get_input_price(tokens_sold, token_reserve, Self::convert(currency_reserve));
+
+            let other_token_reserve = Self::get_token_reserve(&other_exchange);
+            let other_currency_reserve = Self::get_currency_reserve(&other_exchange);
+            let other_tokens_bought = Self::get_input_price(currency_bought, Self::convert(other_currency_reserve), other_token_reserve);
+
+            ensure!(other_tokens_bought >= min_other_tokens, Error::<T>::NotEnoughTokens);
+
+            <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &buyer, &exchange.account, &exchange.account, tokens_sold)?;
+            T::Currency::transfer(&exchange.account, &other_exchange.account, Self::unconvert(currency_bought), ExistenceRequirement::KeepAlive)?;
+            <zenlink_assets::Module<T>>::inner_transfer(&other_exchange.token_id, &other_exchange.account, &recipient, other_tokens_bought)?;
+
+            Self::deposit_event(RawEvent::OtherTokenPurchase(exchange_id, other_exchange_id, buyer, tokens_sold, other_tokens_bought, recipient));
+
+            Ok(())
+        }
+
+        #[weight = 0]
+        pub fn token_to_token_output(origin,
+            exchange_id:  T::ExchangeId,
+            other_exchange_id: T::ExchangeId,
+            other_tokens_bought: TokenBalance<T>,
+            max_tokens: TokenBalance<T>,
+            deadline: T::BlockNumber,
+            recipient: T::AccountId,
+        ) -> dispatch::DispatchResult  {
+            let now = frame_system::Module::<T>::block_number();
+            ensure!(deadline >= now, Error::<T>::Deadline);
+
+            let buyer = ensure_signed(origin)?;
+
+            ensure!(other_tokens_bought > Zero::zero(), Error::<T>::ZeroTokens);
+            ensure!(max_tokens > Zero::zero(), Error::<T>::ZeroTokens);
+
+            let get_exchange = Self::get_exchange(exchange_id);
+            let get_othere_exchange = Self::get_exchange(other_exchange_id);
+            if get_exchange.is_none() || get_othere_exchange.is_none() {
+                return Err(Error::<T>::ExchangeNotExists)?
+            }
+            let exchange = get_exchange.unwrap();
+            let other_exchange = get_othere_exchange.unwrap();
+
+            let other_tokens_reserve = Self::get_token_reserve(&other_exchange);
+            let other_currency_reserve = Self::get_currency_reserve(&other_exchange);
+            let currency_sold = Self::get_output_price(other_tokens_bought, Self::convert(other_currency_reserve), other_tokens_reserve);
+
+            let token_reserve = Self::get_token_reserve(&exchange);
+            let currency_reserve = Self::get_currency_reserve(&exchange);
+            let tokens_sold = Self::get_output_price(currency_sold, token_reserve, Self::convert(currency_reserve));
+
+            ensure!(max_tokens >= tokens_sold, Error::<T>::TooExpensiveTokens);
+
+            <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &buyer, &exchange.account, &exchange.account, tokens_sold)?;
+            T::Currency::transfer(&exchange.account, &other_exchange.account, Self::unconvert(currency_sold), ExistenceRequirement::KeepAlive)?;
+            <zenlink_assets::Module<T>>::inner_transfer(&other_exchange.token_id, &other_exchange.account, &recipient, other_tokens_bought)?;
+
+            Self::deposit_event(RawEvent::OtherTokenPurchase(exchange_id, other_exchange_id, buyer, tokens_sold, other_tokens_bought, recipient));
+
+            Ok(())
+        }
     }
 }
 
@@ -433,9 +523,10 @@ impl<T: Trait> Module<T> {
         )
     }
 
-    pub fn get_currency_to_token_output_price(exchange: &Exchange<T::AccountId, T::AssetId>, tokens_bought: TokenBalance<T>)
-    	-> TokenBalance<T>
-    {
+    pub fn get_currency_to_token_output_price(
+        exchange: &Exchange<T::AccountId, T::AssetId>,
+        tokens_bought: TokenBalance<T>,
+    ) -> TokenBalance<T> {
         if tokens_bought == Zero::zero() {
             return Zero::zero();
         }
@@ -449,25 +540,23 @@ impl<T: Trait> Module<T> {
         )
     }
 
-    pub fn get_token_to_currency_input_price(exchange: &Exchange<T::AccountId, T::AssetId>, tokens_sold: TokenBalance<T>)
-    	-> TokenBalance<T>
-    {
+    pub fn get_token_to_currency_input_price(
+        exchange: &Exchange<T::AccountId, T::AssetId>,
+        tokens_sold: TokenBalance<T>,
+    ) -> TokenBalance<T> {
         if tokens_sold == Zero::zero() {
             return Zero::zero();
         }
 
         let token_reserve = Self::get_token_reserve(exchange);
         let currency_reserve = Self::get_currency_reserve(exchange);
-        Self::get_input_price(
-            tokens_sold,
-            token_reserve,
-            Self::convert(currency_reserve),
-        )
+        Self::get_input_price(tokens_sold, token_reserve, Self::convert(currency_reserve))
     }
 
-    pub fn get_token_to_currency_output_price(exchange: &Exchange<T::AccountId, T::AssetId>, currency_bought: BalanceOf<T>)
-    	-> TokenBalance<T>
-    {
+    pub fn get_token_to_currency_output_price(
+        exchange: &Exchange<T::AccountId, T::AssetId>,
+        currency_bought: BalanceOf<T>,
+    ) -> TokenBalance<T> {
         if currency_bought == Zero::zero() {
             return Zero::zero();
         }

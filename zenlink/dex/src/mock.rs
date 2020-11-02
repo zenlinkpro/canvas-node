@@ -13,7 +13,6 @@ impl_outer_origin! {
     pub enum Origin for Test {}
 }
 
-
 #[derive(Clone, Eq, PartialEq)]
 pub struct Test;
 
@@ -27,8 +26,8 @@ parameter_types! {
 impl frame_system::Trait for Test {
     type BaseCallFilter = ();
     type Origin = Origin;
-    type Index = u64;
     type Call = ();
+    type Index = u64;
     type BlockNumber = u64;
     type Hash = H256;
     type Hashing = BlakeTwo256;
@@ -42,8 +41,8 @@ impl frame_system::Trait for Test {
     type BlockExecutionWeight = ();
     type ExtrinsicBaseWeight = ();
     type MaximumExtrinsicWeight = MaximumBlockWeight;
-    type AvailableBlockRatio = AvailableBlockRatio;
     type MaximumBlockLength = MaximumBlockLength;
+    type AvailableBlockRatio = AvailableBlockRatio;
     type Version = ();
     type PalletInfo = ();
     type AccountData = pallet_balances::AccountData<u128>;
@@ -53,7 +52,7 @@ impl frame_system::Trait for Test {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u64 = 1;
+    pub const ExistentialDeposit: u64 = 1;
 }
 
 impl pallet_balances::Trait for Test {
@@ -85,15 +84,14 @@ pub type Dex = Module<Test>;
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into();
+    let mut t = frame_system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap()
+        .into();
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![
-            (1, 10000),
-            (2, 10000),
-            (3, 10000),
-            (4, 10000),
-            (5, 10000)
-        ],
-    }.assimilate_storage(&mut t).unwrap();
+        balances: vec![(1, 10000), (2, 10000), (3, 10000), (4, 10000), (5, 10000)],
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
     t.into()
 }

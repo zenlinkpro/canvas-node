@@ -1,4 +1,4 @@
-use crate::{mock::*};
+use crate::mock::*;
 
 const TEST_TOKEN: &AssetInfo = &AssetInfo {
     name: *b"zenlinktesttoken",
