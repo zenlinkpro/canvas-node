@@ -13,7 +13,7 @@ use sp_runtime::traits::{
     AccountIdConversion, AtLeast32Bit, CheckedAdd, MaybeSerializeDeserialize, Member, One,
     SaturatedConversion, Zero,
 };
-use sp_runtime::ModuleId;
+use sp_runtime::{ModuleId, RuntimeDebug};
 
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
@@ -37,8 +37,8 @@ const ZLK: &AssetInfo = &AssetInfo {
     decimals: 0u8,
 };
 
-#[derive(Clone, Eq, PartialEq, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(Debug))]
+/// The Dex main structure
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, Default)]
 pub struct Exchange<AccountId, AssetId> {
     // The token being swapped.
     token_id: AssetId,
@@ -48,10 +48,20 @@ pub struct Exchange<AccountId, AssetId> {
     account: AccountId,
 }
 
+/// The wrapper of exchangeId and assetId to access
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug)]
+pub enum SwapHandler<ExchangeId, AssetId> {
+    ExchangeId(ExchangeId),
+    AssetId(AssetId),
+}
+
 type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 type TokenBalance<T> = <T as zenlink_assets::Trait>::TokenBalance;
+
+type SwapHandlerOf<T> =
+    SwapHandler<<T as Trait>::ExchangeId, <T as zenlink_assets::Trait>::AssetId>;
 
 /// The pallet's configuration trait.
 pub trait Trait: frame_system::Trait + zenlink_assets::Trait {
@@ -183,15 +193,15 @@ decl_module! {
         /// to the caller who is the liquidity provider.
         /// The liquidity pool token, shares `ZLK`, allowed to transfer,
         /// it represents the proportion of assets in liquidity pool.
-		///
-		/// - `exchange_id`: ID of exchange to access.
-		/// - `currency_amount`: Amount of base currency to lock.
-		/// - `min_liquidity`: Min amount of exchange shares(ZLK) to create.
-		/// - `max_tokens`: Max amount of tokens to input.
-		/// - `deadline`: When to invalidate the transaction.
+        ///
+        /// - `swap_handler`: The wrapper of exchangeId and assetId to access.
+        /// - `currency_amount`: Amount of base currency to lock.
+        /// - `min_liquidity`: Min amount of exchange shares(ZLK) to create.
+        /// - `max_tokens`: Max amount of tokens to input.
+        /// - `deadline`: When to invalidate the transaction.
         #[weight = 0]
         pub fn add_liquidity(origin,
-            exchange_id: T::ExchangeId,
+            swap_handler: SwapHandlerOf<T>,
             currency_amount: BalanceOf<T>,
             min_liquidity: TokenBalance<T>,
             max_tokens: TokenBalance<T>,
@@ -206,6 +216,8 @@ decl_module! {
 
             ensure!(max_tokens > Zero::zero(), Error::<T>::ZeroTokens);
             ensure!(currency_amount > Zero::zero(), Error::<T>::ZeroCurrency);
+
+            let exchange_id = Self::get_exchange_id(&swap_handler)?;
 
             if let Some(exchange) = Self::get_exchange(exchange_id) {
                 let total_liquidity = <zenlink_assets::Module<T>>::total_supply(&exchange.liquidity_id);
@@ -247,15 +259,15 @@ decl_module! {
         /// Remove liquidity from specific exchange liquidity pool in the form of burning
         /// shares(ZLK), and withdrawing currencies from the exchange account in proportion,
         /// and withdraw liquidity incentive interest.
-		///
-		/// - `exchange_id`: ID of exchange to access.
-		/// - `zlk_to_burn`: Liquidity amount to remove.
-		/// - `min_currency`: Minimum currency to withdraw.
-		/// - `min_tokens`: Minimum tokens to withdraw.
-		/// - `deadline`: When to invalidate the transaction.
+        ///
+        /// - `swap_handler`: The wrapper of exchangeId and assetId to access.
+        /// - `zlk_to_burn`: Liquidity amount to remove.
+        /// - `min_currency`: Minimum currency to withdraw.
+        /// - `min_tokens`: Minimum tokens to withdraw.
+        /// - `deadline`: When to invalidate the transaction.
         #[weight = 0]
         pub fn remove_liquidity(origin,
-            exchange_id: T::ExchangeId,
+            swap_handler: SwapHandlerOf<T>,
             zlk_to_burn: TokenBalance<T>,
             min_currency: BalanceOf<T>,
             min_tokens: TokenBalance<T>,
@@ -268,6 +280,8 @@ decl_module! {
             let who = ensure_signed(origin.clone())?;
 
             ensure!(zlk_to_burn > Zero::zero(), Error::<T>::BurnZeroShares);
+
+            let exchange_id = Self::get_exchange_id(&swap_handler)?;
 
             if let Some(exchange) = Self::get_exchange(exchange_id) {
                 let total_liquidity = <zenlink_assets::Module<T>>::total_supply(&exchange.liquidity_id);
@@ -298,14 +312,14 @@ decl_module! {
         ///
         /// User specifies the exact amount of currency to sold and the amount not less the minimum
         /// tokens to be returned.
-        /// - `exchange_id`: ID of exchange to access.
+        /// - `swap_handler`: The wrapper of exchangeId and assetId to access.
         /// - `currency_sold`: The balance amount to be sold.
         /// - `min_tokens`: The minimum tokens expected to buy.
         /// - `deadline`: When to invalidate the transaction.
         /// - `recipient`: Receiver of the bought token.
         #[weight = 0]
         pub fn currency_to_tokens_input(origin,
-            exchange_id: T::ExchangeId,
+            swap_handler: SwapHandlerOf<T>,
             currency_sold: BalanceOf<T>,
             min_tokens: TokenBalance<T>,
             deadline: T::BlockNumber,
@@ -319,6 +333,8 @@ decl_module! {
 
             ensure!(currency_sold > Zero::zero(), Error::<T>::ZeroCurrency);
             ensure!(min_tokens > Zero::zero(), Error::<T>::ZeroTokens);
+
+            let exchange_id = Self::get_exchange_id(&swap_handler)?;
 
             if let Some(exchange) = Self::get_exchange(exchange_id) {
                 let token_reserve = Self::get_token_reserve(&exchange);
@@ -342,14 +358,14 @@ decl_module! {
         ///
         /// User specifies the maximum currency to be sold and the exact amount of
         /// tokens to be returned.
-        /// - `exchange_id`: ID of exchange to access.
+        /// - `swap_handler`: The wrapper of exchangeId and assetId to access.
         /// - `tokens_bought`: The amount of the token to buy.
         /// - `max_currency`: The maximum currency expected to be sold.
         /// - `deadline`: When to invalidate the transaction.
         /// - `recipient`: Receiver of the bought token.
         #[weight = 0]
         pub fn currency_to_tokens_output(origin,
-            exchange_id: T::ExchangeId,
+            swap_handler: SwapHandlerOf<T>,
             tokens_bought: TokenBalance<T>,
             max_currency: BalanceOf<T>,
             deadline: T::BlockNumber,
@@ -363,6 +379,8 @@ decl_module! {
 
             ensure!(tokens_bought > Zero::zero(), Error::<T>::ZeroTokens);
             ensure!(max_currency > Zero::zero(), Error::<T>::ZeroCurrency);
+
+            let exchange_id = Self::get_exchange_id(&swap_handler)?;
 
             if let Some(exchange) = Self::get_exchange(exchange_id) {
                 let token_reserve = Self::get_token_reserve(&exchange);
@@ -386,14 +404,14 @@ decl_module! {
         ///
         /// User specifies the exact amount of tokens to sold and the amount not less the minimum
         /// currency to be returned.
-        /// - `exchange_id`: ID of exchange to access.
+        /// - `swap_handler`: The wrapper of exchangeId and assetId to access.
         /// - `tokens_sold`: The token balance amount to be sold.
         /// - `min_currency`: The minimum currency expected to buy.
         /// - `deadline`: When to invalidate the transaction.
         /// - `recipient`: Receiver of the bought currency.
         #[weight = 0]
         pub fn tokens_to_currency_input(origin,
-            exchange_id: T::ExchangeId,
+            swap_handler: SwapHandlerOf<T>,
             tokens_sold: TokenBalance<T>,
             min_currency: BalanceOf<T>,
             deadline: T:: BlockNumber,
@@ -407,6 +425,8 @@ decl_module! {
 
             ensure!(tokens_sold > Zero::zero(), Error::<T>::ZeroTokens);
             ensure!(min_currency > Zero::zero(), Error::<T>::ZeroCurrency);
+
+            let exchange_id = Self::get_exchange_id(&swap_handler)?;
 
             if let Some(exchange) = Self::get_exchange(exchange_id) {
                 let token_reserve = Self::get_token_reserve(&exchange);
@@ -430,14 +450,14 @@ decl_module! {
         ///
         /// User specifies the maximum tokens to be sold and the exact
         /// currency to be returned.
-        /// - `exchange_id`: ID of exchange to access.
+        /// - `swap_handler`: The wrapper of exchangeId and assetId to access.
         /// - `currency_bought`: The balance of currency to buy.
         /// - `max_tokens`: The maximum currency expected to be sold.
         /// - `deadline`: When to invalidate the transaction.
         /// - `recipient`: Receiver of the bought currency.
         #[weight = 0]
         pub fn tokens_to_currency_output(origin,
-            exchange_id:  T::ExchangeId,
+            swap_handler: SwapHandlerOf<T>,
             currency_bought: BalanceOf<T>,
             max_tokens: TokenBalance<T>,
             deadline: T::BlockNumber,
@@ -451,6 +471,8 @@ decl_module! {
 
             ensure!(max_tokens > Zero::zero(), Error::<T>::ZeroTokens);
             ensure!(currency_bought > Zero::zero(), Error::<T>::ZeroCurrency);
+
+            let exchange_id = Self::get_exchange_id(&swap_handler)?;
 
             if let Some(exchange) = Self::get_exchange(exchange_id) {
                 let token_reserve = Self::get_token_reserve(&exchange);
@@ -474,7 +496,7 @@ decl_module! {
         ///
         /// User specifies the exact amount of tokens to sold and the amount not less the minimum
         /// other token to be returned.
-        /// - `exchange_id`: ID of exchange to access.
+        /// - `swap_handler`: The wrapper of exchangeId and assetId to access.
         /// - `other_exchange_id`: ID of other exchange to access.
         /// - `tokens_sold`: The token balance amount to be sold.
         /// - `min_other_tokens`: The minimum other tokens expected to buy.
@@ -482,8 +504,8 @@ decl_module! {
         /// - `recipient`: Receiver of the bought other tokens.
         #[weight = 0]
         pub fn token_to_token_input(origin,
-            exchange_id:  T::ExchangeId,
-            other_exchange_id: T::ExchangeId,
+            swap_handler: SwapHandlerOf<T>,
+            other_swap_handle: SwapHandlerOf<T>,
             tokens_sold: TokenBalance<T>,
             min_other_tokens: TokenBalance<T>,
             deadline: T::BlockNumber,
@@ -498,6 +520,8 @@ decl_module! {
             ensure!(tokens_sold > Zero::zero(), Error::<T>::ZeroTokens);
             ensure!(min_other_tokens > Zero::zero(), Error::<T>::ZeroTokens);
 
+            let exchange_id = Self::get_exchange_id(&swap_handler)?;
+            let other_exchange_id = Self::get_exchange_id(&other_swap_handle)?;
             let get_exchange = Self::get_exchange(exchange_id);
             let get_othere_exchange = Self::get_exchange(other_exchange_id);
             if get_exchange.is_none() || get_othere_exchange.is_none() {
@@ -529,7 +553,7 @@ decl_module! {
         ///
         /// User specifies the maximum tokens to be sold and the exact
         /// other tokens to be returned.
-        /// - `exchange_id`: ID of exchange to access.
+        /// - `swap_handler`: The wrapper of exchangeId and assetId to access.
         /// - `other_exchange_id`: ID of other exchange to access.
         /// - `other_tokens_bought`: The amount of the other tokens to buy.
         /// - `max_tokens`: The maximum tokens expected to be sold.
@@ -537,8 +561,8 @@ decl_module! {
         /// - `recipient`: Receiver of the bought currency.
         #[weight = 0]
         pub fn token_to_token_output(origin,
-            exchange_id:  T::ExchangeId,
-            other_exchange_id: T::ExchangeId,
+            swap_handler: SwapHandlerOf<T>,
+            other_swap_handle: SwapHandlerOf<T>,
             other_tokens_bought: TokenBalance<T>,
             max_tokens: TokenBalance<T>,
             deadline: T::BlockNumber,
@@ -552,6 +576,8 @@ decl_module! {
             ensure!(other_tokens_bought > Zero::zero(), Error::<T>::ZeroTokens);
             ensure!(max_tokens > Zero::zero(), Error::<T>::ZeroTokens);
 
+            let exchange_id = Self::get_exchange_id(&swap_handler)?;
+            let other_exchange_id = Self::get_exchange_id(&other_swap_handle)?;
             let get_exchange = Self::get_exchange(exchange_id);
             let get_othere_exchange = Self::get_exchange(other_exchange_id);
             if get_exchange.is_none() || get_othere_exchange.is_none() {
@@ -582,6 +608,17 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
+    /// Get the exchange_id by unwrapping the swap_handler.
+    /// Return exist exchange_id or `ExchangeNotExists` error.
+    pub fn get_exchange_id(swap_handler: &SwapHandlerOf<T>) -> Result<T::ExchangeId, Error<T>> {
+        match swap_handler {
+            SwapHandler::ExchangeId(exchange_id) => Ok(*exchange_id),
+            SwapHandler::AssetId(asset_id) => {
+                Self::token_to_exchange(asset_id).ok_or(Error::<T>::ExchangeNotExists)
+            }
+        }
+    }
+
     /// Swap Currency to Tokens.
     /// Return Amount of Tokens bought.
     pub fn get_currency_to_token_input_price(
