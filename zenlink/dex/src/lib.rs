@@ -22,7 +22,7 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 
-use zenlink_assets::AssetInfo;
+use zenlink_assets::{AssetInfo, AssetType};
 
 #[cfg(test)]
 mod mock;
@@ -35,6 +35,7 @@ const ZLK: &AssetInfo = &AssetInfo {
     /// ZLK
     symbol: [90, 76, 75, 0, 0, 0, 0, 0],
     decimals: 0u8,
+    asset_type: AssetType::Liquidity,
 };
 
 /// The Dex main structure
@@ -111,6 +112,8 @@ decl_event! {
 decl_error! {
     /// Error for dex module.
     pub enum Error for Module<T: Trait> {
+        /// Unsupported `ZLK` liquidity token to swap in exchange
+        UnsupportedTokenType,
         /// Deadline hit.
         Deadline,
         /// Token not exists at this AssetId.
@@ -146,6 +149,7 @@ decl_error! {
 
 // TODO: weight
 // TODO: transaction
+// TODO: exchange fee
 // The pallet's dispatched functions.
 decl_module! {
     /// The module declaration.
@@ -162,7 +166,9 @@ decl_module! {
             token_id: T::AssetId,
         ) -> dispatch::DispatchResult
         {
-            ensure!(<zenlink_assets::Module<T>>::asset_info(&token_id).is_some(), Error::<T>::TokenNotExists);
+            let asset_info = <zenlink_assets::Module<T>>::asset_info(&token_id);
+            ensure!(asset_info.is_some(), Error::<T>::TokenNotExists);
+            ensure!(asset_info.unwrap().asset_type == AssetType::Normal, Error::<T>::UnsupportedTokenType);
             ensure!(Self::token_to_exchange(token_id).is_none(), Error::<T>::ExchangeAlreadyExists);
 
             let exchange_id = Self::next_exchange_id();
@@ -191,7 +197,7 @@ decl_module! {
         /// Injecting liquidity to specific exchange liquidity pool in the form of depositing
         /// currencies to the exchange account and issue liquidity pool token in proportion
         /// to the caller who is the liquidity provider.
-        /// The liquidity pool token, shares `ZLK`, allowed to transfer,
+        /// The liquidity pool token, shares `ZLK`, allowed to transfer but can't swap in exchange
         /// it represents the proportion of assets in liquidity pool.
         ///
         /// - `swap_handler`: The wrapper of exchangeId and assetId to access.

@@ -19,11 +19,22 @@ type Symbol = [u8; 8];
 /// the name of asset.
 type Name = [u8; 16];
 
+#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug)]
+pub enum AssetType {
+    Normal,
+    Liquidity,
+}
+
+impl Default for AssetType {
+    fn default() -> Self { AssetType::Normal }
+}
+
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, Default)]
 pub struct AssetInfo {
     pub name: Name,
     pub symbol: Symbol,
     pub decimals: u8,
+    pub asset_type: AssetType,
 }
 
 /// The module configuration trait.
@@ -38,7 +49,8 @@ pub trait Trait: frame_system::Trait {
     type AssetId: Parameter + AtLeast32Bit + Default + Copy;
 }
 
-// TODO:weight
+// TODO: weight
+// TODO: transaction
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         type Error = Error<T>;
