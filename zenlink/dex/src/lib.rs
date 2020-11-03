@@ -56,6 +56,16 @@ pub enum SwapHandler<ExchangeId, AssetId> {
     AssetId(AssetId),
 }
 
+impl<ExchangeId, AssetId> SwapHandler <ExchangeId, AssetId> {
+    pub fn from_exchange_id(id :ExchangeId) -> Self {
+        Self::ExchangeId(id)
+    }
+
+    pub fn from_asset_id(id :AssetId) -> Self {
+        Self::AssetId(id)
+    }
+}
+
 type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
@@ -144,6 +154,8 @@ decl_error! {
         TooExpensiveCurrency,
         /// Exchange would cost too much in token.
         TooExpensiveToken,
+        /// The allowance token balance of exchange spend too low.
+        AllowanceLow
     }
 }
 
@@ -237,6 +249,7 @@ decl_module! {
 
                     ensure!(max_token >= token_amount, Error::<T>::TooManyToken);
                     ensure!(liquidity_minted >= min_liquidity, Error::<T>::TooLowLiquidity);
+                    ensure!(<zenlink_assets::Module<T>>::allowances(&exchange.token_id, &who, &exchange.account) >= token_amount, Error::<T>::AllowanceLow);
 
                     T::Currency::transfer(&who, &exchange.account, currency_amount, ExistenceRequirement::KeepAlive)?;
                     <zenlink_assets::Module<T>>::inner_mint(&exchange.liquidity_id, &who, liquidity_minted)?;
@@ -246,6 +259,8 @@ decl_module! {
                 } else {
                     // Fresh exchange with no liquidity
                     let token_amount = max_token;
+                    ensure!(<zenlink_assets::Module<T>>::allowances(&exchange.token_id, &who, &exchange.account) >= token_amount, Error::<T>::AllowanceLow);
+
                     T::Currency::transfer(&who, &exchange.account, currency_amount, ExistenceRequirement::KeepAlive)?;
 
                     let initial_liquidity: u64 = T::Currency::free_balance(&exchange.account).saturated_into::<u64>();
@@ -440,6 +455,7 @@ decl_module! {
                 let currency_bought = Self::get_input_price(token_sold, token_reserve, Self::convert(currency_reserve));
 
                 ensure!(currency_bought >= Self::convert(min_currency), Error::<T>::NotEnoughCurrency);
+                ensure!(<zenlink_assets::Module<T>>::allowances(&exchange.token_id, &buyer, &exchange.account) >= token_sold, Error::<T>::AllowanceLow);
 
                 T::Currency::transfer(&exchange.account, &recipient, Self::unconvert(currency_bought), ExistenceRequirement::AllowDeath)?;
                 <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &buyer, &exchange.account, &exchange.account, token_sold)?;
@@ -486,9 +502,10 @@ decl_module! {
                 let token_sold = Self::get_output_price(Self::convert(currency_bought), token_reserve, Self::convert(currency_reserve));
 
                 ensure!(max_token >= token_sold, Error::<T>::TooExpensiveToken);
+                ensure!(<zenlink_assets::Module<T>>::allowances(&exchange.token_id, &buyer, &exchange.account) >= token_sold, Error::<T>::AllowanceLow);
 
                 T::Currency::transfer(&exchange.account, &buyer, currency_bought, ExistenceRequirement::AllowDeath)?;
-                <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &recipient, &exchange.account, &exchange.account, token_sold)?;
+                <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &buyer, &exchange.account, &exchange.account, token_sold)?;
 
                 Self::deposit_event(RawEvent::CurrencyPurchase(exchange_id, buyer, currency_bought, token_sold, recipient));
 
@@ -545,6 +562,7 @@ decl_module! {
             let other_token_bought = Self::get_input_price(currency_bought, Self::convert(other_currency_reserve), other_token_reserve);
 
             ensure!(other_token_bought >= min_other_token, Error::<T>::NotEnoughToken);
+            ensure!(<zenlink_assets::Module<T>>::allowances(&exchange.token_id, &buyer, &exchange.account) >= token_sold, Error::<T>::AllowanceLow);
 
             <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &buyer, &exchange.account, &exchange.account, token_sold)?;
             T::Currency::transfer(&exchange.account, &other_exchange.account, Self::unconvert(currency_bought), ExistenceRequirement::KeepAlive)?;
@@ -601,6 +619,7 @@ decl_module! {
             let token_sold = Self::get_output_price(currency_sold, token_reserve, Self::convert(currency_reserve));
 
             ensure!(max_token >= token_sold, Error::<T>::TooExpensiveToken);
+            ensure!(<zenlink_assets::Module<T>>::allowances(&exchange.token_id, &buyer, &exchange.account) >= token_sold, Error::<T>::AllowanceLow);
 
             <zenlink_assets::Module<T>>::inner_transfer_from(&exchange.token_id, &buyer, &exchange.account, &exchange.account, token_sold)?;
             T::Currency::transfer(&exchange.account, &other_exchange.account, Self::unconvert(currency_sold), ExistenceRequirement::KeepAlive)?;
@@ -625,6 +644,9 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    pub fn get_exchange_info(id :T::ExchangeId) -> Option<Exchange<T::AccountId, T::AssetId>> {
+        Self::get_exchange(id)
+    }
     /// Swap Currency to Token.
     /// Return Amount of Token bought.
     pub fn get_currency_to_token_input_price(

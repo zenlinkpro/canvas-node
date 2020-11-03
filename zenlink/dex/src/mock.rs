@@ -83,8 +83,8 @@ impl Trait for Test {
 }
 
 pub type Currency = pallet_balances::Module<Test>;
-pub type Tokens = zenlink_assets::Module<Test>;
-pub type Dex = Module<Test>;
+pub type TokenModule = zenlink_assets::Module<Test>;
+pub type DexModule = Module<Test>;
 
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
