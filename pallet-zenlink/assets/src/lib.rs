@@ -45,7 +45,7 @@ decl_module! {
         type Error = Error<T>;
 
         fn deposit_event() = default;
-        /// Issue a new class of zenlink assets. There are, and will only ever be, `total`
+        /// Issue a new class of pallet-zenlink assets. There are, and will only ever be, `total`
         /// such assets and they'll all belong to the `origin` initially. It will have an
         /// identifier `AssetId` instance: this will be specified in the `Issued` event.
         ///

@@ -7985,25 +7985,22 @@ dependencies = [
 [[package]]
 name = "zenlink-assets"
 version = "0.1.0"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#7422eeeb23e0f189d635d3e86885ec7465bc9d58"
 dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
- "sp-core",
- "sp-io",
  "sp-runtime",
 ]
 
 [[package]]
 name = "zenlink-dex"
 version = "0.1.0"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#7422eeeb23e0f189d635d3e86885ec7465bc9d58"
 dependencies = [
  "frame-support",
  "frame-system",
- "pallet-balances",
  "parity-scale-codec",
- "sp-core",
- "sp-io",
  "sp-runtime",
  "zenlink-assets",
 ]
