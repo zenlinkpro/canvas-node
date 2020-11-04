@@ -22,7 +22,7 @@ use frame_support::{
 };
 use frame_system::ensure_signed;
 
-use zenlink_assets::{AssetInfo, AssetType};
+use zenlink_assets::AssetInfo;
 
 #[cfg(test)]
 mod mock;
@@ -35,7 +35,6 @@ const ZLK: &AssetInfo = &AssetInfo {
     /// ZLK
     symbol: [90, 76, 75, 0, 0, 0, 0, 0],
     decimals: 0u8,
-    asset_type: AssetType::Liquidity,
 };
 
 /// The Dex main structure
@@ -90,6 +89,8 @@ decl_storage! {
     trait Store for Module<T: Trait> as DexStorage {
         /// Token to exchange: asset_id -> exchange_id
         TokenToExchange get(fn token_to_exchange): map hasher(opaque_blake2_256) T::AssetId => Option<T::ExchangeId>;
+        /// Liquidity to exchange: zlk_asset_id -> exchange_id
+        ZLKToExchange get(fn zlk_to_exchange): map hasher(opaque_blake2_256) T::AssetId => Option<T::ExchangeId>;
         /// The exchanges: exchange_id -> exchange
         Exchanges get(fn get_exchange): map hasher(opaque_blake2_256) T::ExchangeId => Option<Exchange<T::AccountId, T::AssetId>>;
         /// The next exchange identifier
@@ -122,8 +123,8 @@ decl_event! {
 decl_error! {
     /// Error for dex module.
     pub enum Error for Module<T: Trait> {
-        /// Unsupported `ZLK` liquidity token to swap in exchange
-        UnsupportedTokenType,
+        /// Denied `ZLK` liquidity token to swap in exchange
+        DeniedSwap,
         /// Deadline hit.
         Deadline,
         /// Token not exists at this AssetId.
@@ -180,7 +181,7 @@ decl_module! {
         {
             let asset_info = <zenlink_assets::Module<T>>::asset_info(&token_id);
             ensure!(asset_info.is_some(), Error::<T>::TokenNotExists);
-            ensure!(asset_info.unwrap().asset_type == AssetType::Normal, Error::<T>::UnsupportedTokenType);
+            ensure!(Self::zlk_to_exchange(token_id).is_none(), Error::<T>::DeniedSwap);
             ensure!(Self::token_to_exchange(token_id).is_none(), Error::<T>::ExchangeAlreadyExists);
 
             let exchange_id = Self::next_exchange_id();
@@ -198,6 +199,7 @@ decl_module! {
             };
 
             <TokenToExchange<T>>::insert(token_id, exchange_id);
+            <ZLKToExchange<T>>::insert(liquidity_id, exchange_id);
             <Exchanges<T>>::insert(exchange_id, new_exchange);
             <NextExchangeId<T>>::put(next_id);
 

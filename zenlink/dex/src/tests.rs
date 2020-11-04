@@ -3,27 +3,16 @@ use frame_support::{
     assert_noop, assert_ok,
 };
 
-use zenlink_assets::AssetType;
-
 const TEST_TOKEN: &AssetInfo = &AssetInfo {
     name: *b"zenlinktesttoken",
     symbol: *b"TEST____",
     decimals: 0u8,
-    asset_type: AssetType::Normal,
 };
 
 const TEST_OTHER_TOKEN: &AssetInfo = &AssetInfo {
     name: *b"zenlinktesttoken",
     symbol: *b"TEST2___",
     decimals: 0u8,
-    asset_type: AssetType::Normal,
-};
-
-const TEST_LIQUIDITY: &AssetInfo = &AssetInfo {
-    name: *b"zenlinktesttoken",
-    symbol: *b"ZLK_____",
-    decimals: 0u8,
-    asset_type: AssetType::Liquidity,
 };
 
 const ALICE: u128 = 1;
@@ -81,17 +70,16 @@ fn create_exchange_should_not_work() {
             Error::<Test>::TokenNotExists
         );
 
-        assert_eq!(TokenModule::inner_issue(&ALICE, 10000, TEST_LIQUIDITY), 0);
+        assert_eq!(TokenModule::inner_issue(&ALICE, 10000, TEST_TOKEN), 0);
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
         assert_noop!(
             DexModule::create_exchange(Origin::signed(ALICE), 0),
-            Error::<Test>::UnsupportedTokenType
+            Error::<Test>::ExchangeAlreadyExists
         );
 
-        assert_eq!(TokenModule::inner_issue(&ALICE, 10000, TEST_TOKEN), 1);
-        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 1));
         assert_noop!(
             DexModule::create_exchange(Origin::signed(ALICE), 1),
-            Error::<Test>::ExchangeAlreadyExists
+            Error::<Test>::DeniedSwap
         );
     })
 }

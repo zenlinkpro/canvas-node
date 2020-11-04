@@ -19,22 +19,11 @@ type Symbol = [u8; 8];
 /// the name of asset.
 type Name = [u8; 16];
 
-#[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug)]
-pub enum AssetType {
-    Normal,
-    Liquidity,
-}
-
-impl Default for AssetType {
-    fn default() -> Self { AssetType::Normal }
-}
-
 #[derive(Encode, Decode, Eq, PartialEq, Clone, RuntimeDebug, Default)]
 pub struct AssetInfo {
     pub name: Name,
     pub symbol: Symbol,
     pub decimals: u8,
-    pub asset_type: AssetType,
 }
 
 /// The module configuration trait.
