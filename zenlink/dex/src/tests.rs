@@ -12,6 +12,13 @@ const TEST_TOKEN: &AssetInfo = &AssetInfo {
     asset_type: AssetType::Normal,
 };
 
+const TEST_OTHER_TOKEN: &AssetInfo = &AssetInfo {
+    name: *b"zenlinktesttoken",
+    symbol: *b"TEST2___",
+    decimals: 0u8,
+    asset_type: AssetType::Normal,
+};
+
 const TEST_LIQUIDITY: &AssetInfo = &AssetInfo {
     name: *b"zenlinktesttoken",
     symbol: *b"ZLK_____",
@@ -19,10 +26,13 @@ const TEST_LIQUIDITY: &AssetInfo = &AssetInfo {
     asset_type: AssetType::Liquidity,
 };
 
-const ALICE: u64 = 1;
+const ALICE: u128 = 1;
+const BOB: u128 = 2;
+const CHAREL: u128 = 3;
 
-// Exchange account: 5EYCAe5kjMUvmw3KJBswvhJKJEJh4v7FdzqtsQnc9KtK3Fxk
-const EXCHANGE_ACCOUNT: u64 = 6875708529171525485;
+// u128 for MODULE_ID.into_sub_account()
+const EXCHANGE_ACCOUNT: u128 = 15310315390164549602772283245;
+const EXCHANGE_ACCOUNT2: u128 = 94538477904428887196316233581;
 
 #[test]
 fn issuing_asset_units_to_issuer_should_work() {
@@ -83,6 +93,84 @@ fn create_exchange_should_not_work() {
             DexModule::create_exchange(Origin::signed(ALICE), 1),
             Error::<Test>::ExchangeAlreadyExists
         );
+    })
+}
+
+#[test]
+fn create_more_exchanges_should_work() {
+    new_test_ext().execute_with(|| {
+        // create TEST_TOKEN exchange
+        assert_eq!(TokenModule::inner_issue(&ALICE, 42, TEST_TOKEN), 0);
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
+
+        assert_eq!(
+            DexModule::get_exchange_info(0).unwrap().account,
+            EXCHANGE_ACCOUNT
+        );
+        assert_eq!(
+            DexModule::get_exchange_info(0).unwrap().token_id,
+            0
+        );
+        assert_eq!(
+            DexModule::get_exchange_info(0).unwrap().liquidity_id,
+            1
+        );
+
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &ALICE,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
+
+        assert_eq!(TokenModule::total_supply(&1), 0);
+        // Add 420 currency and 42 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            420,
+            0,
+            42,
+            100
+        ));
+        assert_eq!(TokenModule::total_supply(&1), 420);
+
+
+        // create TEST_OTHER_TOKEN exchange
+        assert_eq!(TokenModule::inner_issue(&BOB, 42, TEST_OTHER_TOKEN), 2);
+        assert_ok!(DexModule::create_exchange(Origin::signed(BOB), 2));
+
+        assert_eq!(
+            DexModule::get_exchange_info(1).unwrap().account,
+            EXCHANGE_ACCOUNT2
+        );
+        assert_eq!(
+            DexModule::get_exchange_info(1).unwrap().token_id,
+            2
+        );
+        assert_eq!(
+            DexModule::get_exchange_info(1).unwrap().liquidity_id,
+            3
+        );
+
+        assert_ok!(TokenModule::inner_approve(
+            &2,
+            &BOB,
+            &EXCHANGE_ACCOUNT2,
+            42
+        ));
+
+        assert_eq!(TokenModule::total_supply(&3), 0);
+        // Add 420 currency and 42 other token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(BOB),
+            SwapHandler::from_exchange_id(1),
+            420,
+            0,
+            42,
+            100
+        ));
+        assert_eq!(TokenModule::total_supply(&3), 420);
     })
 }
 
@@ -211,7 +299,7 @@ fn add_liquidity_should_work() {
             Origin::signed(ALICE),
             SwapHandler::from_exchange_id(0),
             100,
-            101,
+            101,    // min liquidity is set too high
             1000,
             100
         ), Error::<Test>::TooLowLiquidity);
@@ -222,7 +310,7 @@ fn add_liquidity_should_work() {
             SwapHandler::from_exchange_id(0),
             100,
             1,
-            1,
+            1,  // max token is set too low
             100
         ), Error::<Test>::TooManyToken);
 
@@ -338,47 +426,497 @@ fn remove_liquidity_should_work() {
         ));
 
         assert_eq!(TokenModule::total_supply(&1), 0);
+
+        // Fresh exchange with no liquidity
+        // Add 100 currency and 500 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            100,
+            0,
+            500,
+            100
+        ));
+
+        assert_eq!(TokenModule::total_supply(&1), 100);
+
     })
 }
 
 #[test]
 fn currency_to_token_input_should_work() {
     new_test_ext().execute_with(|| {
+        assert_eq!(TokenModule::inner_issue(&ALICE, 42, TEST_TOKEN), 0);
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &ALICE,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
 
+        // Add 420 currency and 42 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            420,
+            0,
+            42,
+            100
+        ));
+
+        // Total supply liquidity is 420
+        assert_eq!(TokenModule::total_supply(&1), 420);
+
+        assert_noop!(DexModule::currency_to_token_input(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            300,
+            20,     // min tokens is set too high
+            100,
+            ALICE
+        ), Error::<Test>::NotEnoughToken);
+
+        assert_eq!(Currency::free_balance(ALICE), 10000 - 420);
+        assert_eq!(Currency::free_balance(EXCHANGE_ACCOUNT), 420);
+        assert_eq!(TokenModule::balance_of(&0,&BOB), 0);
+        assert_eq!(TokenModule::balance_of(&0,&EXCHANGE_ACCOUNT), 42);
+
+        assert_ok!(DexModule::currency_to_token_input(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            300,
+            1,
+            100,
+            BOB
+        ));
+
+        assert_eq!(Currency::free_balance(ALICE), 10000 - 420 - 300);
+        assert_eq!(Currency::free_balance(EXCHANGE_ACCOUNT), 420 + 300);
+        assert_eq!(TokenModule::balance_of(&0,&EXCHANGE_ACCOUNT), 42 - 17);
+        assert_eq!(TokenModule::balance_of(&0,&BOB), 17);
+        assert_eq!(TokenModule::balance_of(&0,&ALICE), 0);
+
+        // ZLK liquidity share should not change
+        assert_eq!(TokenModule::balance_of(&1,&ALICE), 420);
     })
 }
 
 #[test]
 fn currency_to_token_output_should_work() {
     new_test_ext().execute_with(|| {
+        assert_eq!(TokenModule::inner_issue(&ALICE, 42, TEST_TOKEN), 0);
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &ALICE,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
 
+        // Add 420 currency and 42 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_asset_id(0),
+            420,
+            0,
+            42,
+            100
+        ));
+
+        // Total supply liquidity is 420
+        assert_eq!(TokenModule::total_supply(&1), 420);
+
+        assert_noop!(DexModule::currency_to_token_output(
+            Origin::signed(ALICE),
+            SwapHandler::from_asset_id(0),
+            17,
+            200,     // max currency set too low for this token amount
+            100,
+            ALICE
+        ), Error::<Test>::TooExpensiveCurrency);
+
+        assert_ok!(DexModule::currency_to_token_output(
+            Origin::signed(ALICE),
+            SwapHandler::from_asset_id(0),
+            17,
+            300,     // just ok
+            100,
+            BOB
+        ));
+
+        assert_eq!(Currency::free_balance(ALICE), 10000 - 420 - 287);
+        assert_eq!(Currency::free_balance(EXCHANGE_ACCOUNT), 420 + 287);
+        assert_eq!(TokenModule::balance_of(&0,&EXCHANGE_ACCOUNT), 42 - 17);
+        assert_eq!(TokenModule::balance_of(&0,&BOB), 17);
+        assert_eq!(TokenModule::balance_of(&0,&ALICE), 0);
+
+        // ZLK liquidity share should not change
+        assert_eq!(TokenModule::balance_of(&1,&ALICE), 420);
     })
 }
 
 #[test]
 fn token_to_currency_input_should_work() {
     new_test_ext().execute_with(|| {
+        assert_eq!(TokenModule::inner_issue(&ALICE, 42*2, TEST_TOKEN), 0);
+        assert_ok!(TokenModule::inner_transfer(&0, &ALICE, &BOB, 42));
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &ALICE,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
 
+        // Add 420 currency and 42 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            420,
+            0,
+            42,
+            100
+        ));
+
+        // Total supply liquidity is 420
+        assert_eq!(TokenModule::total_supply(&1), 420);
+
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &BOB,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
+
+        assert_noop!(DexModule::token_to_currency_input(
+            Origin::signed(BOB),
+            SwapHandler::from_exchange_id(0),
+            20,
+            1000,   // min currency set too high for this token amount
+            100,
+            BOB
+        ), Error::<Test>::NotEnoughCurrency);
+
+        assert_ok!(DexModule::token_to_currency_input(
+            Origin::signed(BOB),
+            SwapHandler::from_exchange_id(0),
+            20,
+            1,
+            100,
+            BOB
+        ));
+
+        assert_eq!(Currency::free_balance(BOB), 10000 + 135);
+        assert_eq!(Currency::free_balance(EXCHANGE_ACCOUNT), 420 - 135);
+        assert_eq!(TokenModule::balance_of(&0,&EXCHANGE_ACCOUNT), 42 + 20);
+        assert_eq!(TokenModule::balance_of(&0,&BOB), 42 - 20);
+        assert_eq!(TokenModule::balance_of(&0,&ALICE), 0);
+
+        // ZLK liquidity share should not change
+        assert_eq!(TokenModule::balance_of(&1,&ALICE), 420);
     })
 }
 
 #[test]
 fn token_to_currency_output_should_work() {
     new_test_ext().execute_with(|| {
+        assert_eq!(TokenModule::inner_issue(&ALICE, 42*2, TEST_TOKEN), 0);
+        assert_ok!(TokenModule::inner_transfer(&0, &ALICE, &BOB, 42));
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &ALICE,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
 
+        // Add 420 currency and 42 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            420,
+            0,
+            42,
+            100
+        ));
+
+        // Total supply liquidity is 420
+        assert_eq!(TokenModule::total_supply(&1), 420);
+
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &BOB,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
+
+        assert_noop!(DexModule::token_to_currency_output(
+            Origin::signed(BOB),
+            SwapHandler::from_asset_id(0),
+            135,
+            1,   // max token set too low for this currency
+            100,
+            BOB
+        ), Error::<Test>::TooExpensiveToken);
+
+        assert_ok!(DexModule::token_to_currency_output(
+            Origin::signed(BOB),
+            SwapHandler::from_asset_id(0),
+            135,
+            1000,
+            100,
+            BOB
+        ));
+
+        assert_eq!(Currency::free_balance(BOB), 10000 + 135);
+        assert_eq!(Currency::free_balance(EXCHANGE_ACCOUNT), 420 - 135);
+        assert_eq!(TokenModule::balance_of(&0,&EXCHANGE_ACCOUNT), 42 + 20);
+        assert_eq!(TokenModule::balance_of(&0,&BOB), 42 - 20);
+        assert_eq!(TokenModule::balance_of(&0,&ALICE), 0);
+
+        // ZLK liquidity share should not change
+        assert_eq!(TokenModule::balance_of(&1,&ALICE), 420);
     })
 }
 
 #[test]
 fn token_to_token_input_should_work() {
     new_test_ext().execute_with(|| {
+        // create TEST_TOKEN exchange
+        assert_eq!(TokenModule::inner_issue(&ALICE, 42+42, TEST_TOKEN), 0);
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &ALICE,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
+        // Add 420 currency and 42 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            420,
+            0,
+            42,
+            100
+        ));
+        assert_eq!(TokenModule::total_supply(&1), 420);
 
+        // create TEST_OTHER_TOKEN exchange
+        assert_eq!(TokenModule::inner_issue(&BOB, 42, TEST_OTHER_TOKEN), 2);
+        assert_ok!(DexModule::create_exchange(Origin::signed(BOB), 2));
+        assert_ok!(TokenModule::inner_approve(
+            &2,
+            &BOB,
+            &EXCHANGE_ACCOUNT2,
+            42
+        ));
+        // Add 420 currency and 42 other token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(BOB),
+            SwapHandler::from_asset_id(2),
+            420,
+            0,
+            42,
+            100
+        ));
+        assert_eq!(TokenModule::total_supply(&3), 420);
+
+        // Transfer 42 token to CHAREL
+        assert_ok!(TokenModule::inner_transfer(&0, &ALICE, &CHAREL, 42));
+
+        assert_eq!(TokenModule::balance_of(&0, &CHAREL), 42);
+        assert_eq!(TokenModule::balance_of(&2, &CHAREL), 0);
+
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &CHAREL,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
+
+        assert_noop!(DexModule::token_to_token_input(
+            Origin::signed(CHAREL),
+            SwapHandler::from_asset_id(0),
+            SwapHandler::from_exchange_id(1),
+            42,
+            100,     //min other token set too high
+            100,
+            CHAREL
+        ), Error::<Test>::NotEnoughToken);
+
+        assert_ok!(DexModule::token_to_token_input(
+            Origin::signed(CHAREL),
+            SwapHandler::from_asset_id(0),
+            SwapHandler::from_exchange_id(1),
+            42,
+            1,
+            100,
+            CHAREL
+        ));
+
+        assert_eq!(TokenModule::balance_of(&0, &CHAREL), 0);
+        assert_eq!(TokenModule::balance_of(&2, &CHAREL), 13);
+
+        assert_eq!(TokenModule::total_supply(&1), 420);
+        assert_eq!(TokenModule::total_supply(&3), 420);
     })
 }
 
 #[test]
 fn token_to_token_output_should_work() {
     new_test_ext().execute_with(|| {
+        // create TEST_TOKEN exchange
+        assert_eq!(TokenModule::inner_issue(&ALICE, 42+42, TEST_TOKEN), 0);
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &ALICE,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
+        // Add 420 currency and 42 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            420,
+            0,
+            42,
+            100
+        ));
+        assert_eq!(TokenModule::total_supply(&1), 420);
 
+        // create TEST_OTHER_TOKEN exchange
+        assert_eq!(TokenModule::inner_issue(&BOB, 42, TEST_OTHER_TOKEN), 2);
+        assert_ok!(DexModule::create_exchange(Origin::signed(BOB), 2));
+        assert_ok!(TokenModule::inner_approve(
+            &2,
+            &BOB,
+            &EXCHANGE_ACCOUNT2,
+            42
+        ));
+        // Add 420 currency and 42 other token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(BOB),
+            SwapHandler::from_exchange_id(1),
+            420,
+            0,
+            42,
+            100
+        ));
+        assert_eq!(TokenModule::total_supply(&3), 420);
+
+        // Transfer 42 token to CHAREL
+        assert_ok!(TokenModule::inner_transfer(&0, &ALICE, &CHAREL, 42));
+
+        assert_eq!(TokenModule::balance_of(&0, &CHAREL), 42);
+        assert_eq!(TokenModule::balance_of(&2, &CHAREL), 0);
+
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &CHAREL,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
+
+        assert_noop!(DexModule::token_to_token_output(
+            Origin::signed(CHAREL),
+            SwapHandler::from_exchange_id(0),
+            SwapHandler::from_asset_id(2),
+            13,
+            1,     //max token set too low
+            100,
+            CHAREL
+        ), Error::<Test>::TooExpensiveToken);
+
+        assert_ok!(DexModule::token_to_token_output(
+            Origin::signed(CHAREL),
+            SwapHandler::from_exchange_id(0),
+            SwapHandler::from_asset_id(2),
+            13,
+            42,
+            100,
+            CHAREL
+        ));
+
+        assert_eq!(TokenModule::balance_of(&0, &CHAREL), 7);
+        assert_eq!(TokenModule::balance_of(&2, &CHAREL), 13);
+
+        assert_eq!(TokenModule::total_supply(&1), 420);
+        assert_eq!(TokenModule::total_supply(&3), 420);
+    })
+}
+
+#[test]
+fn zlk_liquidity_transfer_and_remove_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_eq!(TokenModule::inner_issue(&ALICE, 42, TEST_TOKEN), 0);
+        assert_ok!(DexModule::create_exchange(Origin::signed(ALICE), 0));
+        assert_ok!(TokenModule::inner_approve(
+            &0,
+            &ALICE,
+            &EXCHANGE_ACCOUNT,
+            42
+        ));
+
+        // Add 420 currency and 42 token
+        assert_ok!(DexModule::add_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            420,
+            0,
+            42,
+            100
+        ));
+
+        // Total supply liquidity is 420
+        assert_eq!(TokenModule::total_supply(&1), 420);
+        assert_eq!(TokenModule::balance_of(&1, &EXCHANGE_ACCOUNT), 0);
+        assert_eq!(TokenModule::balance_of(&0, &EXCHANGE_ACCOUNT), 42);
+        assert_eq!(TokenModule::balance_of(&1, &ALICE), 420);
+        assert_eq!(Currency::free_balance(ALICE), 10000-420);
+        // Transfer ZLK liquidity token
+        assert_ok!(TokenModule::inner_transfer(&1, &ALICE, &BOB, 100));
+        assert_ok!(TokenModule::inner_transfer(&1, &ALICE, &CHAREL, 100));
+
+        assert_ok!(DexModule::remove_liquidity(
+            Origin::signed(BOB),
+            SwapHandler::from_exchange_id(0),
+            100,
+            1,
+            1,
+            100
+        ));
+
+        assert_ok!(DexModule::remove_liquidity(
+            Origin::signed(CHAREL),
+            SwapHandler::from_exchange_id(0),
+            100,
+            1,
+            1,
+            100
+        ));
+
+        assert_ok!(DexModule::remove_liquidity(
+            Origin::signed(ALICE),
+            SwapHandler::from_exchange_id(0),
+            420-100-100,
+            1,
+            1,
+            100
+        ));
+
+        assert_eq!(TokenModule::balance_of(&0, &BOB), 10);
+        assert_eq!(Currency::free_balance(BOB), 10000+100);
+
+        assert_eq!(TokenModule::balance_of(&0, &CHAREL), 10);
+        assert_eq!(Currency::free_balance(CHAREL), 10000+100);
+
+        assert_eq!(TokenModule::balance_of(&0, &ALICE), 22);
+        assert_eq!(Currency::free_balance(ALICE), 10000-420+220);
+
+        assert_eq!(TokenModule::total_supply(&1), 0);
+        assert_eq!(TokenModule::balance_of(&1, &ALICE), 0);
     })
 }
