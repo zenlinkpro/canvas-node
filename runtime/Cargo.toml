@@ -43,9 +43,6 @@ pallet-contracts-primitives = { version = "2.0.0", default_features = false }
 pallet-contracts-rpc-runtime-api = { version = "0.8.0", default-features = false }
 
 # Zenlink dex
-#zenlink-assets = { path = '../pallet-zenlink/assets', default-features = false }
-#zenlink-dex = { path = '../pallet-zenlink', default-features = false }
-
 zenlink-assets = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", default-features = false }
 zenlink-dex = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", default-features = false }
 

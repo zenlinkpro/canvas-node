@@ -7985,7 +7985,7 @@ dependencies = [
 [[package]]
 name = "zenlink-assets"
 version = "0.1.0"
-source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#7422eeeb23e0f189d635d3e86885ec7465bc9d58"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#65f715219bae2d8ea1911e575048ac21b158b4d0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7996,7 +7996,7 @@ dependencies = [
 [[package]]
 name = "zenlink-dex"
 version = "0.1.0"
-source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#7422eeeb23e0f189d635d3e86885ec7465bc9d58"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#65f715219bae2d8ea1911e575048ac21b158b4d0"
 dependencies = [
  "frame-support",
  "frame-system",

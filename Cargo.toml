@@ -1,8 +1,7 @@
 [workspace]
 members = [
     'node',
-    'runtime',
-#    'pallet-zenlink'
+    'runtime'
 ]
 [profile.release]
 panic = 'unwind'
