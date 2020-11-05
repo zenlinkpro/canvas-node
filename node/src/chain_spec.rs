@@ -7,7 +7,7 @@ use canvas_runtime::{
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
-use sc_service::ChainType;
+use sc_service::{ChainType, config::TelemetryEndpoints};
 use hex_literal::hex;
 
 // Note this is the URL for the telemetry server
@@ -88,8 +88,8 @@ pub fn testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
-		"Zenlink Dex 1",
-		"zenlink_testnet1",
+		"Zenlink Testnet",
+		"zenlink_dex1",
 		ChainType::Live,
 		move || testnet_genesis(
 			wasm_binary,
@@ -102,7 +102,9 @@ pub fn testnet_config() -> Result<ChainSpec, String> {
 			"/ip4/8.210.137.84/tcp/30333/p2p/12D3KooWBBzbYXwnQXoqxew9uWwfTbRBWfZSLWrrEbDDwmYF4Vqs".parse()
 				.expect("MultiaddrWithPeerId"),
 		],
-		None,
+		Some(TelemetryEndpoints::new(vec![
+			("wss://telemetry.polkadot.io/submit/".to_string(), 0),
+		]).unwrap()),
 		Some("zlk"),
 		None,
 		None
