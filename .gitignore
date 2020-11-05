@@ -7,4 +7,3 @@
 .idea/
 rls*.log
 runtime/Cargo.lock
-pallet-zenlink/
