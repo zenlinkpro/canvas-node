@@ -92,8 +92,8 @@ pub fn testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
-		"Canvas Testnet 1",
-		"canvas_testnet1",
+		"Zenlink Testnet 1",
+		"zenlink_testnet1",
 		ChainType::Live,
 		move || testnet_genesis(
 			wasm_binary,
@@ -103,13 +103,11 @@ pub fn testnet_config() -> Result<ChainSpec, String> {
 			true,
 		),
 		vec![
-			"/ip4/35.233.19.96/tcp/30333/p2p/QmNvYhAZSBtahCqCXznYiq8e24Yes1GraPFYCc3DyA5f3z".parse()
-				.expect("MultiaddrWithPeerId"),
-			"/ip4/35.205.110.21/tcp/30333/p2p/QmPKFc9B2oeQFc5oxbNsRENwSYibzzafKmcHs9wBZCJH4U".parse()
+			"/ip4/8.210.137.84/tcp/30333/p2p/12D3KooWBBzbYXwnQXoqxew9uWwfTbRBWfZSLWrrEbDDwmYF4Vqs".parse()
 				.expect("MultiaddrWithPeerId"),
 		],
 		None,
-		Some("prc"),
+		Some("zlk"),
 		None,
 		None
 	))
