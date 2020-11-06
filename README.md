@@ -10,7 +10,7 @@ To run local dev node, do
 cargo run --release -- --dev
 ```
 
-To run zenlink-dex testnet 1, do
+To run testnet, do
 
 ```
 cargo run --release
@@ -48,3 +48,7 @@ cargo run --release
   }
 }
 ```
+
+# Tutorial
+
+For testing Zenlink DEX Pallet, please see [tutorial](./tutorial/readme.md)
