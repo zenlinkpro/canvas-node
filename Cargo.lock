@@ -688,6 +688,8 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder-runner",
+ "zenlink-assets",
+ "zenlink-dex",
 ]
 
 [[package]]
@@ -7978,6 +7980,29 @@ dependencies = [
  "parking_lot 0.11.0",
  "rand 0.7.3",
  "static_assertions",
+]
+
+[[package]]
+name = "zenlink-assets"
+version = "0.1.0"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#65f715219bae2d8ea1911e575048ac21b158b4d0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-runtime",
+]
+
+[[package]]
+name = "zenlink-dex"
+version = "0.1.0"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#65f715219bae2d8ea1911e575048ac21b158b4d0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-runtime",
+ "zenlink-assets",
 ]
 
 [[package]]

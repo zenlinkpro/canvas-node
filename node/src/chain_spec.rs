@@ -7,7 +7,7 @@ use canvas_runtime::{
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
-use sc_service::ChainType;
+use sc_service::{ChainType, config::TelemetryEndpoints};
 use hex_literal::hex;
 
 // Note this is the URL for the telemetry server
@@ -45,18 +45,14 @@ pub fn testnet_authorities() -> Vec<(AuraId, GrandpaId)> {
 	use sp_core::crypto::UncheckedInto;
 	vec![
 		(
-			hex!("74608217b1709e1d3a4fe65b132db5c3f321e625026080833189661aa5e20712").unchecked_into(),
-			hex!("a5abc21ac95ae63dd6e61e5bec263ab46d1efe16d3dcc085d0de297318cb662d").unchecked_into(),
-		),
-		(
-			hex!("44f3876fe4f653533c65e79461a476b8d6a107fb71b6ec0f3485bb53b4e7b842").unchecked_into(),
-			hex!("281be34a71b661b257153e1145522fd0820cfff6a3601b40e7f85d3bc155240d").unchecked_into(),
-		),
+			hex!("0e5b1beaf1f324e3b8e08c9de2c7ee1b7fa71c38828071e19fafb499e0034c51").unchecked_into(),
+			hex!("1ce8c260da0b30583c820372428bd3b8dab20e0e7090dcb15baf2abe2285f5fb").unchecked_into(),
+		)
 	]
 }
 
 pub fn testnet_root() -> AccountId {
-	hex!("baa78c7154c7f82d6d377177e20bcab65d327eca0086513f9964f5a0f6bdad56").into()
+	hex!("0e5b1beaf1f324e3b8e08c9de2c7ee1b7fa71c38828071e19fafb499e0034c51").into()
 }
 
 pub fn development_config() -> Result<ChainSpec, String> {
@@ -92,8 +88,8 @@ pub fn testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
-		"Canvas Testnet 1",
-		"canvas_testnet1",
+		"Zenlink Testnet",
+		"zenlink_dex1",
 		ChainType::Live,
 		move || testnet_genesis(
 			wasm_binary,
@@ -103,13 +99,13 @@ pub fn testnet_config() -> Result<ChainSpec, String> {
 			true,
 		),
 		vec![
-			"/ip4/35.233.19.96/tcp/30333/p2p/QmNvYhAZSBtahCqCXznYiq8e24Yes1GraPFYCc3DyA5f3z".parse()
-				.expect("MultiaddrWithPeerId"),
-			"/ip4/35.205.110.21/tcp/30333/p2p/QmPKFc9B2oeQFc5oxbNsRENwSYibzzafKmcHs9wBZCJH4U".parse()
+			"/ip4/8.210.137.84/tcp/30333/p2p/12D3KooWBBzbYXwnQXoqxew9uWwfTbRBWfZSLWrrEbDDwmYF4Vqs".parse()
 				.expect("MultiaddrWithPeerId"),
 		],
-		None,
-		Some("prc"),
+		Some(TelemetryEndpoints::new(vec![
+			("wss://telemetry.polkadot.io/submit/".to_string(), 0),
+		]).unwrap()),
+		Some("zlk"),
 		None,
 		None
 	))
