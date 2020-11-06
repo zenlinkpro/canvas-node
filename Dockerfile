@@ -31,4 +31,4 @@ COPY --from=cargo-build /canvas-node/target/release/canvas /usr/local/bin/canvas
 
 EXPOSE 9944
 
-CMD ["canvas", "--tmp", "--name=canvas-node-test"]
+CMD ["canvas", "--tmp", "--rpc-external", "--ws-external", "--name=canvas-node-test"]
