@@ -40,7 +40,7 @@ cargo run --release
     "liquidity_id": "AssetId",
     "account": "AccountId"
   },
-  "SwapHandleOf": {
+  "SwapHandlerOf": {
     "_enum": {
       "ExchangeId": "(ExchangeId)",
       "AssetId": "(AssetId)"
