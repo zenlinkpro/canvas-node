@@ -19,7 +19,7 @@ cargo build --release
 {
   "Address": "AccountId",
   "LookupSource": "AccountId",
-  "RefCount": "u8",
+  "RefCount": "u32",
   "AssetId": "u32",
   "Name": "[u8;16]",
   "Symbol": "[u8;8]",
