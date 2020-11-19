@@ -7,13 +7,15 @@
 
 use std::sync::Arc;
 
-use canvas_runtime::{opaque::Block, AccountId, Balance, BlockNumber, Index};
 use pallet_contracts_rpc::{Contracts, ContractsApi};
-use sp_api::ProvideRuntimeApi;
-use sp_blockchain::{Error as BlockChainError, HeaderMetadata, HeaderBackend};
-use sp_block_builder::BlockBuilder;
 pub use sc_rpc_api::DenyUnsafe;
+use sp_api::ProvideRuntimeApi;
+use sp_block_builder::BlockBuilder;
+use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_transaction_pool::TransactionPool;
+
+use canvas_runtime::{AccountId, AssetId, Balance, BlockNumber,
+					 ExchangeId, Index, opaque::Block, TokenBalance};
 
 /// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -36,6 +38,7 @@ pub fn create_full<C, P>(
 	C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
+	C::Api: zenlink_dex_runtime_api::ZenlinkDexApi<Block, AccountId, AssetId, TokenBalance, Balance, ExchangeId>,
 	P: TransactionPool + 'static,
 {
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
@@ -59,6 +62,10 @@ pub fn create_full<C, P>(
 	// Contracts RPC API extension
 	io.extend_with(
 		ContractsApi::to_delegate(Contracts::new(client.clone()))
+	);
+
+	io.extend_with(
+		zenlink_dex_rpc::ZenlinkDexApi::to_delegate(zenlink_dex_rpc::ZenlinkDex::new(client.clone()))
 	);
 
 	io

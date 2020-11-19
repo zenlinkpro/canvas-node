@@ -20,7 +20,7 @@ frame-system = { version = "2.0.0", default-features = false }
 pallet-timestamp = { version = "2.0.0", default-features = false }
 pallet-transaction-payment = { version = "2.0.0", default-features = false }
 frame-executive = { version = "2.0.0", default-features = false }
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
+serde = { version = "1.0.117", optional = true, features = ["derive"] }
 sp-api = { version = "2.0.0", default-features = false }
 sp-block-builder = { version = "2.0.0", default-features = false }
 sp-consensus-aura = { version = "0.8.0", default-features = false }
@@ -43,8 +43,9 @@ pallet-contracts-primitives = { version = "2.0.0", default_features = false }
 pallet-contracts-rpc-runtime-api = { version = "0.8.0", default-features = false }
 
 # Zenlink dex
-zenlink-assets = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", default-features = false }
-zenlink-dex = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", default-features = false }
+zenlink-assets = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", version = "0.1.1", default-features = false }
+zenlink-dex = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", version = "0.1.1", default-features = false }
+zenlink-dex-runtime-api = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", version = "0.1.1", default-features = false }
 
 [build-dependencies]
 wasm-builder-runner = { version = "1.0.6", package = "substrate-wasm-builder-runner" }
@@ -81,5 +82,6 @@ std = [
     "pallet-contracts-primitives/std",
     "pallet-contracts-rpc-runtime-api/std",
     "zenlink-assets/std",
-    "zenlink-dex/std"
+    "zenlink-dex/std",
+    "zenlink-dex-runtime-api/std"
 ]

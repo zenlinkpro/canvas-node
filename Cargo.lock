@@ -653,6 +653,8 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
+ "zenlink-dex-rpc",
+ "zenlink-dex-runtime-api",
 ]
 
 [[package]]
@@ -690,6 +692,7 @@ dependencies = [
  "substrate-wasm-builder-runner",
  "zenlink-assets",
  "zenlink-dex",
+ "zenlink-dex-runtime-api",
 ]
 
 [[package]]
@@ -5777,18 +5780,18 @@ checksum = "f638d531eccd6e23b980caf34876660d38e265409d8e99b397ab71eb3612fad0"
 
 [[package]]
 name = "serde"
-version = "1.0.115"
+version = "1.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e54c9a88f2da7238af84b5101443f0c0d0a3bbdc455e34a5c9497b1903ed55d5"
+checksum = "b88fa983de7720629c9387e9f517353ed404164b1e482c970a90c1a4aaf7dc1a"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.115"
+version = "1.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "609feed1d0a73cc36a0182a840a9b37b4a82f0b1150369f0536a9e3f2a31dc48"
+checksum = "cbd1ae72adb44aab48f325a02444a5fc079349a8d804c1fc922aed3f7454c74e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7364,7 +7367,7 @@ version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bfd5b7557925ce778ff9b9ef90e3ade34c524b5ff10e239c69a42d546d2af56"
 dependencies = [
- "rand 0.7.3",
+ "rand 0.5.6",
 ]
 
 [[package]]
@@ -7984,8 +7987,8 @@ dependencies = [
 
 [[package]]
 name = "zenlink-assets"
-version = "0.1.0"
-source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#65f715219bae2d8ea1911e575048ac21b158b4d0"
+version = "0.1.1"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#ebdd4004a2cdb6a82304cd105bbd6765f048261f"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -7995,14 +7998,45 @@ dependencies = [
 
 [[package]]
 name = "zenlink-dex"
-version = "0.1.0"
-source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#65f715219bae2d8ea1911e575048ac21b158b4d0"
+version = "0.1.1"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#ebdd4004a2cdb6a82304cd105bbd6765f048261f"
 dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "serde",
  "sp-runtime",
+ "sp-std",
  "zenlink-assets",
+]
+
+[[package]]
+name = "zenlink-dex-rpc"
+version = "0.1.1"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#ebdd4004a2cdb6a82304cd105bbd6765f048261f"
+dependencies = [
+ "jsonrpc-core",
+ "jsonrpc-core-client",
+ "jsonrpc-derive",
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-blockchain",
+ "sp-rpc",
+ "sp-runtime",
+ "zenlink-dex",
+ "zenlink-dex-runtime-api",
+]
+
+[[package]]
+name = "zenlink-dex-runtime-api"
+version = "0.1.1"
+source = "git+https://github.com/zenlinkpro/pallet-zenlink.git?branch=main#ebdd4004a2cdb6a82304cd105bbd6765f048261f"
+dependencies = [
+ "parity-scale-codec",
+ "sp-api",
+ "sp-std",
+ "zenlink-dex",
 ]
 
 [[package]]

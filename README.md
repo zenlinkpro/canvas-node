@@ -7,13 +7,13 @@ To be continued....
 To run local dev node, do
 
 ```
-cargo run --release -- --dev
+cargo +nightly-2020-10-05 run --release -- --dev
 ```
 
 To run testnet, do
 
 ```
-cargo run --release
+cargo +nightly-2020-10-05 run --release
 ```
 
 

@@ -1,43 +1,43 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit="256"]
+#![recursion_limit = "256"]
 
-// Make the WASM binary available.
-#[cfg(feature = "std")]
-include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
-
-use sp_std::prelude::*;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::{
-	ApplyExtrinsicResult, generic, create_runtime_str, impl_opaque_keys, MultiSignature, ModuleId,
-	transaction_validity::{TransactionValidity, TransactionSource},
-};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, IdentityLookup, Verify, IdentifyAccount, NumberFor, Saturating,
-};
-use sp_api::impl_runtime_apis;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
-use pallet_grandpa::fg_primitives;
-use sp_version::RuntimeVersion;
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
-
-// A few exports that help ease life for downstream crates.
-#[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
-pub use pallet_timestamp::Call as TimestampCall;
-pub use pallet_balances::Call as BalancesCall;
-use pallet_contracts_rpc_runtime_api::ContractExecResult;
-pub use sp_runtime::{Permill, Perbill};
 pub use frame_support::{
 	construct_runtime, parameter_types, StorageValue,
 	traits::{KeyOwnerProofSystem, Randomness},
 	weights::{
-		Weight, IdentityFee,
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND}, IdentityFee,
+		Weight,
 	},
 };
+pub use pallet_balances::Call as BalancesCall;
+use pallet_contracts_rpc_runtime_api::ContractExecResult;
+use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+use pallet_grandpa::fg_primitives;
+pub use pallet_timestamp::Call as TimestampCall;
+use sp_api::impl_runtime_apis;
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_runtime::{
+	ApplyExtrinsicResult, create_runtime_str, generic, impl_opaque_keys, ModuleId, MultiSignature,
+	transaction_validity::{TransactionSource, TransactionValidity},
+};
+pub use sp_runtime::{Perbill, Permill};
+// A few exports that help ease life for downstream crates.
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
+use sp_runtime::traits::{
+	BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, NumberFor, Saturating, Verify,
+};
+use sp_std::prelude::*;
+#[cfg(feature = "std")]
+use sp_version::NativeVersion;
+use sp_version::RuntimeVersion;
+use zenlink_dex::{ExchangeInfo, TokenInfo};
+
+// Make the WASM binary available.
+#[cfg(feature = "std")]
+include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -65,14 +65,23 @@ pub type Hash = sp_core::H256;
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;
 
+/// Asset Id of the zenlink assets.
+pub type AssetId = u32;
+
+/// Token Balance of an account.
+pub type TokenBalance = u64;
+
+/// Exchange Id of the zenlink dex.
+pub type ExchangeId = u32;
+
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core data structures.
 pub mod opaque {
-	use super::*;
-
 	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+
+	use super::*;
 
 	/// Opaque block header type.
 	pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
@@ -290,8 +299,8 @@ impl pallet_sudo::Trait for Runtime {
 
 impl zenlink_assets::Trait for Runtime {
 	type Event = Event;
-	type TokenBalance = u64;
-	type AssetId = u32;
+	type TokenBalance = TokenBalance;
+	type AssetId = AssetId;
 }
 
 parameter_types! {
@@ -300,7 +309,7 @@ parameter_types! {
 
 impl zenlink_dex::Trait for Runtime {
 	type Event = Event;
-	type ExchangeId = u32;
+	type ExchangeId = ExchangeId;
 	type Currency = Balances;
 	type ModuleId = DEXModuleId;
 }
@@ -516,6 +525,65 @@ impl_runtime_apis! {
 			address: AccountId,
 		) -> pallet_contracts_primitives::RentProjectionResult<BlockNumber> {
 			Contracts::rent_projection(address)
+		}
+	}
+
+	impl zenlink_dex_runtime_api::ZenlinkDexApi<Block, AccountId, AssetId, TokenBalance, Balance, ExchangeId> for Runtime {
+		fn get_token_info(
+			token_id: AssetId
+		) -> Option<TokenInfo<TokenBalance>> {
+			ZenlinkDex::get_token_info(token_id)
+		}
+
+		fn get_token_balance(
+			token_id: AssetId,
+			owner: AccountId,
+		) -> TokenBalance {
+			ZenlinkDex::get_token_balance(token_id, owner)
+		}
+
+		fn get_token_allowance(
+			token_id: AssetId,
+			owner: AccountId,
+			spender: AccountId,
+		) -> TokenBalance {
+			ZenlinkDex::get_token_allowance(token_id, owner, spender)
+		}
+
+        fn get_exchange_by_token_id(
+        	token_id: AssetId,
+        ) -> Option<ExchangeInfo<
+        	AccountId,
+        	AssetId,
+        	TokenBalance,
+        	Balance,
+        	ExchangeId
+        >> {
+        	ZenlinkDex::get_exchange_by_token_id(token_id)
+        }
+
+        fn get_exchange_by_id(
+        	id: ExchangeId,
+        ) -> Option<ExchangeInfo<
+        	AccountId,
+        	AssetId,
+        	TokenBalance,
+        	Balance,
+        	ExchangeId
+        >> {
+        	ZenlinkDex::get_exchange_by_id(id)
+        }
+
+
+		fn get_exchanges() -> Vec<
+			zenlink_dex::ExchangeInfo<
+				AccountId,
+				AssetId,
+				TokenBalance,
+				Balance,
+				ExchangeId,
+		>> {
+			ZenlinkDex::get_exchanges()
 		}
 	}
 }

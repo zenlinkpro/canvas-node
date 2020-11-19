@@ -43,6 +43,9 @@ pallet-contracts-rpc = "0.8.0"
 
 canvas-runtime = { version = "0.1.0", path = "../runtime" }
 
+zenlink-dex-runtime-api = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", version = "0.1.1" }
+zenlink-dex-rpc = { git = 'https://github.com/zenlinkpro/pallet-zenlink.git', branch = "main", version = "0.1.1" }
+
 [build-dependencies]
 substrate-build-script-utils = "2.0.0"
 
