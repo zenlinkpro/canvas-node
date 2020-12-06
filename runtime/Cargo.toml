@@ -43,11 +43,11 @@ pallet-contracts-primitives = { version = "2.0.0", default_features = false }
 pallet-contracts-rpc-runtime-api = { version = "0.8.0", default-features = false }
 
 # Zenlink dex
-# zenlink-assets = { git = 'https://github.com/zenlinkpro/pallet-zenlink-v2.git', branch = "main", default-features = false }
-# zenlink-dex = { git = 'https://github.com/zenlinkpro/pallet-zenlink-v2.git', branch = "main", default-features = false }
+zenlink-assets = { git = 'https://github.com/zenlinkpro/pallet-zenlink-v2.git', branch = "main", default-features = false }
+zenlink-dex = { git = 'https://github.com/zenlinkpro/pallet-zenlink-v2.git', branch = "main", default-features = false }
 
-zenlink-assets = { path = '../../pallet-zenlink-v2/assets/',  default-features = false }
-zenlink-dex = { path = '../../pallet-zenlink-v2/dex/',  default-features = false }
+# zenlink-assets = { path = '../../pallet-zenlink-v2/assets/',  default-features = false }
+# zenlink-dex = { path = '../../pallet-zenlink-v2/dex/',  default-features = false }
 
 [build-dependencies]
 wasm-builder-runner = { version = "1.0.6", package = "substrate-wasm-builder-runner" }
