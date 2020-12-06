@@ -288,14 +288,18 @@ impl pallet_sudo::Trait for Runtime {
 	type Call = Call;
 }
 
+
+parameter_types! {
+	pub const DEXModuleId: ModuleId = ModuleId(*b"zlk_dex1");
+	pub const AssetModuleId: ModuleId = ModuleId(*b"asset   ");
+}
+
 impl zenlink_assets::Trait for Runtime {
 	type Event = Event;
 	type TokenBalance = u64;
 	type AssetId = u32;
-}
-
-parameter_types! {
-    pub const DEXModuleId: ModuleId = ModuleId(*b"zlk_dex1");
+	type Currency = Balances;
+	type ModuleId = DEXModuleId;
 }
 
 impl zenlink_dex::Trait for Runtime {
